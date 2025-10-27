@@ -318,6 +318,11 @@ func (r *Repository) GetUserAppointments(userID int) ([]models.AppointmentWithDe
 	return appointments, nil
 }
 
+func (r *Repository) UpdateAppointment(appointmentID int, comment string) error {
+	_, err := r.db.Exec("UPDATE appointments SET comment = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", comment, appointmentID)
+	return err
+}
+
 func (r *Repository) CancelAppointment(appointmentID int) error {
 	_, err := r.db.Exec("UPDATE appointments SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE id = $1", appointmentID)
 	return err

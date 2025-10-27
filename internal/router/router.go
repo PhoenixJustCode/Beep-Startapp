@@ -1,0 +1,106 @@
+package router
+
+import (
+	"beep-backend/internal/handlers"
+
+	"github.com/gin-gonic/gin"
+)
+
+func SetupRouter(h *handlers.Handlers) *gin.Engine {
+	r := gin.Default()
+
+	// CORS middleware
+	r.Use(corsMiddleware())
+
+	// Health check
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
+	// API v1
+	v1 := r.Group("/api/v1")
+	{
+		// Auth
+		auth := v1.Group("/auth")
+		{
+			auth.POST("/login", h.Login)
+			auth.POST("/register", h.Register)
+		}
+
+		// Categories
+		categories := v1.Group("/categories")
+		{
+			categories.GET("", h.GetCategories)
+			categories.GET("/:id", h.GetCategoryByID)
+		}
+
+		// Services
+		services := v1.Group("/services")
+		{
+			services.GET("", h.GetServices)
+			services.GET("/:id", h.GetServiceByID)
+		}
+
+		// Cars
+		cars := v1.Group("/cars")
+		{
+			cars.GET("", h.GetCars)
+			cars.GET("/:id", h.GetCarByID)
+		}
+
+		// Pricing
+		pricing := v1.Group("/pricing")
+		{
+			pricing.POST("/calculate", h.CalculatePrice)
+		}
+
+		// Masters
+		masters := v1.Group("/masters")
+		{
+			masters.GET("", h.GetMasters)
+			masters.GET("/:id", h.GetMasterByID)
+			masters.GET("/:id/reviews", h.GetMasterReviews)
+			masters.GET("/:id/schedule", h.GetMasterSchedule)
+			masters.GET("/:id/available-slots", h.GetAvailableSlots)
+		}
+
+		// Appointments
+		appointments := v1.Group("/appointments")
+		{
+			appointments.POST("", h.CreateAppointment)
+			appointments.GET("", h.GetUserAppointments)
+			appointments.GET("/:id", h.GetAppointmentByID)
+			appointments.DELETE("/:id", h.CancelAppointment)
+		}
+	}
+
+	// Serve static files (after API routes)
+	r.Static("/static", "./static")
+	r.GET("/", func(c *gin.Context) {
+		c.File("./static/index.html")
+	})
+	r.GET("/login.html", func(c *gin.Context) {
+		c.File("./static/login.html")
+	})
+	r.NoRoute(func(c *gin.Context) {
+		c.File("./static/index.html")
+	})
+
+	return r
+}
+
+func corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	}
+}

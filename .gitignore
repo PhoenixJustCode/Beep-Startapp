@@ -1,34 +1,34 @@
-# Binaries
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-main
+# # Binaries
+# *.exe
+# *.exe~
+# *.dll
+# *.so
+# *.dylib
+# main
 
-# Test binary
-*.test
+# # Test binary
+# *.test
 
-# Output of the go coverage tool
-*.out
+# # Output of the go coverage tool
+# *.out
 
-# Dependency directories
-vendor/
+# # Dependency directories
+# vendor/
 
-# Go workspace file
-go.work
+# # Go workspace file
+# go.work
 
-# Environment variables
-.env
-.env.local
+# # Environment variables
+# .env
+# .env.local
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
+# # IDE
+# .idea/
+# .vscode/
+# *.swp
+# *.swo
+# *~
 
-# OS
-.DS_Store
-Thumbs.db
+# # OS
+# .DS_Store
+# Thumbs.db

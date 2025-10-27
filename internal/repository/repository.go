@@ -289,17 +289,28 @@ func (r *Repository) CreateAppointment(userID, masterID, serviceID int, date tim
 	return &appointment, nil
 }
 
-func (r *Repository) GetUserAppointments(userID int) ([]models.Appointment, error) {
-	rows, err := r.db.Query("SELECT id, user_id, master_id, service_id, date, time, status, comment, created_at, updated_at FROM appointments WHERE user_id = $1 ORDER BY date DESC, time DESC", userID)
+func (r *Repository) GetUserAppointments(userID int) ([]models.AppointmentWithDetails, error) {
+	query := `
+		SELECT 
+			a.id, a.user_id, a.master_id, a.service_id, a.date, a.time, a.status, a.comment, a.created_at, a.updated_at,
+			s.name as service_name,
+			m.name as master_name
+		FROM appointments a
+		LEFT JOIN services s ON a.service_id = s.id
+		LEFT JOIN masters m ON a.master_id = m.id
+		WHERE a.user_id = $1 
+		ORDER BY a.date DESC, a.time DESC`
+
+	rows, err := r.db.Query(query, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var appointments []models.Appointment
+	var appointments []models.AppointmentWithDetails
 	for rows.Next() {
-		var appt models.Appointment
-		if err := rows.Scan(&appt.ID, &appt.UserID, &appt.MasterID, &appt.ServiceID, &appt.Date, &appt.Time, &appt.Status, &appt.Comment, &appt.CreatedAt, &appt.UpdatedAt); err != nil {
+		var appt models.AppointmentWithDetails
+		if err := rows.Scan(&appt.ID, &appt.UserID, &appt.MasterID, &appt.ServiceID, &appt.Date, &appt.Time, &appt.Status, &appt.Comment, &appt.CreatedAt, &appt.UpdatedAt, &appt.ServiceName, &appt.MasterName); err != nil {
 			return nil, err
 		}
 		appointments = append(appointments, appt)

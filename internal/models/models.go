@@ -4,13 +4,13 @@ import "time"
 
 // User represents a user in the system
 type User struct {
-	ID          int       `json:"id" db:"id"`
-	Name        string    `json:"name" db:"name"`
-	Email       string    `json:"email" db:"email"`
-	Phone       string    `json:"phone" db:"phone"`
-	PasswordHash string   `json:"-" db:"password_hash"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	ID           int       `json:"id" db:"id"`
+	Name         string    `json:"name" db:"name"`
+	Email        string    `json:"email" db:"email"`
+	Phone        string    `json:"phone" db:"phone"`
+	PasswordHash string    `json:"-" db:"password_hash"`
+	CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // Category represents a service category
@@ -36,11 +36,11 @@ type Service struct {
 
 // Car represents a car model
 type Car struct {
-	ID     int    `json:"id" db:"id"`
-	Brand  string `json:"brand" db:"brand"`
-	Model  string `json:"model" db:"model"`
-	Year   int    `json:"year" db:"year"`
-	Type   string `json:"type" db:"type"`
+	ID    int    `json:"id" db:"id"`
+	Brand string `json:"brand" db:"brand"`
+	Model string `json:"model" db:"model"`
+	Year  int    `json:"year" db:"year"`
+	Type  string `json:"type" db:"type"`
 }
 
 // PriceZone represents a price zone
@@ -52,12 +52,12 @@ type PriceZone struct {
 
 // PricingRule represents a pricing rule
 type PricingRule struct {
-	ID           int     `json:"id" db:"id"`
-	ServiceID    int     `json:"service_id" db:"service_id"`
-	CarType      string  `json:"car_type" db:"car_type"`
-	CarAgeMin    int     `json:"car_age_min" db:"car_age_min"`
-	CarAgeMax    int     `json:"car_age_max" db:"car_age_max"`
-	Multiplier   float64 `json:"multiplier" db:"multiplier"`
+	ID            int     `json:"id" db:"id"`
+	ServiceID     int     `json:"service_id" db:"service_id"`
+	CarType       string  `json:"car_type" db:"car_type"`
+	CarAgeMin     int     `json:"car_age_min" db:"car_age_min"`
+	CarAgeMax     int     `json:"car_age_max" db:"car_age_max"`
+	Multiplier    float64 `json:"multiplier" db:"multiplier"`
 	FixedAddition float64 `json:"fixed_addition" db:"fixed_addition"`
 }
 
@@ -100,6 +100,13 @@ type Appointment struct {
 	Comment   string    `json:"comment" db:"comment"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// AppointmentWithDetails represents an appointment with related details
+type AppointmentWithDetails struct {
+	Appointment
+	ServiceName string `json:"service_name" db:"service_name"`
+	MasterName  string `json:"master_name" db:"master_name"`
 }
 
 // Review represents a review of a master

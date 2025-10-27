@@ -167,3 +167,7 @@ go run ./cmd/main.go
 - **API примеры:** `API_EXAMPLES.md`
 - **Setup инструкции:** `QUICKSTART.md`
 
+
+
+
+

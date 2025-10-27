@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Личный кабинет - BEEP</title>
+    <link rel="stylesheet" href="/static/style/style.css">
+</head>
+<body>
+    <div class="container">
+        <header style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1>✨ BEEP - Личный кабинет</h1>
+                <p class="tagline">Управляйте своим профилем и заказами</p>
+            </div>
+            <button onclick="window.location.href='/'" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">На главную</button>
+        </header>
+
+        <!-- Вкладки -->
+        <div style="background: white; border-radius: 15px; margin-bottom: 20px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+            <div style="display: flex; gap: 10px; border-bottom: 2px solid #e2e8f0;">
+                <button class="tab-btn active" onclick="openTab(event, 'userTab')" style="padding: 12px 24px; background: none; border: none; border-bottom: 3px solid var(--primary); color: var(--primary); font-weight: 600; cursor: pointer; font-size: 16px;">Пользователь</button>
+                <button class="tab-btn" onclick="openTab(event, 'masterTab')" style="padding: 12px 24px; background: none; border: none; border-bottom: 3px solid transparent; color: #64748b; font-weight: 600; cursor: pointer; font-size: 16px;">Профиль мастера</button>
+            </div>
+        </div>
+
+        <!-- Вкладка пользователя -->
+        <div id="userTab" class="tab-content active" style="display: block;">
+            <div class="main-content">
+            <!-- User Profile Card -->
+            <div class="card">
+                <h2>👤 Мой профиль</h2>
+                <div class="profile-info">
+                    <div class="info-item">
+                        <label>Имя:</label>
+                        <span id="userName">-</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Email:</label>
+                        <span id="userEmail">-</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Телефон:</label>
+                        <span id="userPhone">-</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Дата регистрации:</label>
+                        <span id="userCreated">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Appointments Card -->
+            <div class="card">
+                <h2>📅 Мои записи</h2>
+                <div id="userAppointments" style="max-height: 500px; overflow-y: auto;">
+                    <p style="color: #999;">Загрузка...</p>
+                </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вкладка профиля мастера -->
+        <div id="masterTab" class="tab-content" style="display: none;">
+            <div class="card">
+                <h2>👨‍🔧 Профиль мастера</h2>
+                <p style="color: #999; padding: 40px; text-align: center; background: #f8f9fa; border-radius: 10px;">
+                    У вас пока нет профиля мастера.<br>
+                    Свяжитесь с администратором для создания профиля мастера.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script/profile.js"></script>
+</body>
+</html>
+

@@ -4,202 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BEEP - Вход</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-
-        .login-container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
-            max-width: 900px;
-            width: 100%;
-            display: flex;
-        }
-
-        .login-left {
-            flex: 1;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 60px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-        }
-
-        .login-left h1 {
-            font-size: 3em;
-            margin-bottom: 20px;
-        }
-
-        .login-left p {
-            font-size: 1.2em;
-            opacity: 0.9;
-        }
-
-        .login-right {
-            flex: 1;
-            padding: 60px;
-        }
-
-        .login-right h2 {
-            color: #667eea;
-            margin-bottom: 10px;
-            font-size: 2em;
-        }
-
-        .login-right p {
-            color: #666;
-            margin-bottom: 30px;
-        }
-
-        .form-group {
-            margin-bottom: 25px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 600;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 15px;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .btn-primary {
-            width: 100%;
-            padding: 15px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 18px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            margin-bottom: 20px;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-secondary {
-            width: 100%;
-            padding: 15px;
-            background: white;
-            color: #667eea;
-            border: 2px solid #667eea;
-            border-radius: 10px;
-            font-size: 18px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn-secondary:hover {
-            background: #667eea;
-            color: white;
-        }
-
-        .divider {
-            text-align: center;
-            margin: 30px 0;
-            color: #999;
-            position: relative;
-        }
-
-        .divider::before,
-        .divider::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            width: 45%;
-            height: 1px;
-            background: #e2e8f0;
-        }
-
-        .divider::before {
-            left: 0;
-        }
-
-        .divider::after {
-            right: 0;
-        }
-
-        .error {
-            background: #fee2e2;
-            color: #dc2626;
-            padding: 15px;
-            border-radius: 10px;
-            border-left: 4px solid #dc2626;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .loading {
-            text-align: center;
-            color: #666;
-            display: none;
-        }
-
-        .logo {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: white;
-            color: #667eea;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2em;
-            margin-bottom: 20px;
-            font-weight: bold;
-        }
-
-        @media (max-width: 768px) {
-            .login-container {
-                flex-direction: column;
-            }
-            
-            .login-left {
-                padding: 40px;
-            }
-            
-            .login-right {
-                padding: 40px;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="/static/style/style.css">
 </head>
 <body>
     <div class="login-container">
@@ -208,87 +13,23 @@
             <h1>Spirit Planning</h1>
             <p>Забронируйте услугу по ремонту автомобиля</p>
         </div>
-        
         <div class="login-right">
             <h2>Добро пожаловать</h2>
-            <p>Войдите в свой аккаунт или создайте новый</p>
-            
-            <div class="error" id="error-message"></div>
-            <div class="loading" id="loading">Загрузка...</div>
-            
             <form id="login-form">
                 <div class="form-group">
                     <label for="email">Email</label>
-                    <input type="email" id="email" placeholder="your@email.com" required>
+                    <input type="email" id="email" required>
                 </div>
-                
                 <div class="form-group">
                     <label for="password">Пароль</label>
-                    <input type="password" id="password" placeholder="••••••••" required>
+                    <input type="password" id="password" required>
                 </div>
-                
                 <button type="submit" class="btn-primary">Войти</button>
             </form>
-            
-            <div class="divider">или</div>
-            
-            <button class="btn-secondary" onclick="window.location.href='index.html'">
-                Продолжить без регистрации
-            </button>
+            <button class="btn-secondary" onclick="window.location.href='index.html'">Продолжить без регистрации</button>
         </div>
     </div>
-
-    <script>
-        const API_URL = window.location.origin + '/api/v1';
-
-        document.getElementById('login-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            
-            document.getElementById('error-message').style.display = 'none';
-            document.getElementById('loading').style.display = 'block';
-            
-            try {
-                const response = await fetch(`${API_URL}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    // Сохраняем токен
-                    localStorage.setItem('token', data.token);
-                    localStorage.setItem('user', JSON.stringify(data.user));
-                    
-                    // Переходим на главную
-                    window.location.href = 'index.html';
-                } else {
-                    showError(data.error || 'Ошибка входа');
-                }
-            } catch (error) {
-                showError('Ошибка подключения к серверу');
-                console.error(error);
-            } finally {
-                document.getElementById('loading').style.display = 'none';
-            }
-        });
-        
-        function showError(message) {
-            const errorDiv = document.getElementById('error-message');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-        }
-
-        // Проверка, если уже залогинен
-        const token = localStorage.getItem('token');
-        if (token) {
-            window.location.href = 'index.html';
-        }
-    </script>
+    <script src="/static/script/script.js"></script>
 </body>
 </html>
 

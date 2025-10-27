@@ -300,6 +300,31 @@ func (h *Handlers) GetAppointmentByID(c *gin.Context) {
 	c.JSON(http.StatusOK, appointment)
 }
 
+func (h *Handlers) UpdateAppointment(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	type Request struct {
+		Comment string `json:"comment"`
+	}
+
+	var req Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.repo.UpdateAppointment(id, req.Comment); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Appointment updated successfully"})
+}
+
 func (h *Handlers) CancelAppointment(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {

@@ -63,3 +63,7 @@ INSERT INTO cars (brand, model, year, type) VALUES
 ('UAZ', 'Patriot', 2020, 'Standard')
 ON CONFLICT DO NOTHING;
 
+
+
+
+

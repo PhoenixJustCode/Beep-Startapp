@@ -1,368 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BEEP - Spirit Planning</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --primary: #6366f1;
-            --secondary: #8b5cf6;
-            --accent: #ec4899;
-            --dark: #1e293b;
-            --light: #f8fafc;
-            --white: #ffffff;
-            --gray: #64748b;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: var(--dark);
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        header {
-            background: var(--white);
-            padding: 30px 0;
-            text-align: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            border-radius: 15px;
-            margin-bottom: 30px;
-        }
-
-        h1 {
-            font-size: 3em;
-            background: linear-gradient(135deg, var(--primary), var(--accent));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
-        }
-
-        .tagline {
-            color: var(--gray);
-            font-size: 1.2em;
-        }
-
-        .main-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
-        }
-
-        .card {
-            background: var(--white);
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
-        }
-
-        .card h2 {
-            color: var(--primary);
-            margin-bottom: 20px;
-            font-size: 1.8em;
-            border-bottom: 3px solid var(--primary);
-            padding-bottom: 10px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: var(--dark);
-            font-weight: 600;
-        }
-
-        select, input, textarea {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s ease;
-        }
-
-        select:focus, input:focus, textarea:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        button {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: var(--white);
-            border: none;
-            padding: 15px 30px;
-            border-radius: 8px;
-            font-size: 18px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            width: 100%;
-        }
-
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(99, 102, 241, 0.4);
-        }
-
-        button:active {
-            transform: translateY(0);
-        }
-
-        .results {
-            background: var(--white);
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
-        }
-
-        .results h2 {
-            color: var(--primary);
-            margin-bottom: 20px;
-            font-size: 1.8em;
-            border-bottom: 3px solid var(--primary);
-            padding-bottom: 10px;
-        }
-
-        .result-item {
-            background: var(--light);
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            border-left: 4px solid var(--primary);
-        }
-
-        .result-item h3 {
-            color: var(--dark);
-            margin-bottom: 10px;
-        }
-
-        .result-item p {
-            color: var(--gray);
-            margin: 5px 0;
-        }
-
-        .price {
-            font-size: 2em;
-            color: var(--accent);
-            font-weight: bold;
-            margin: 20px 0;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: var(--gray);
-        }
-
-        .error {
-            background: #fee2e2;
-            color: #dc2626;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #dc2626;
-            margin-bottom: 20px;
-        }
-
-        .success {
-            background: #d1fae5;
-            color: #065f46;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #10b981;
-            margin-bottom: 20px;
-        }
-
-        .masters-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-        }
-
-        .master-card {
-            background: var(--light);
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
-        }
-
-        .master-card:hover {
-            border-color: var(--primary);
-            transform: scale(1.02);
-        }
-
-        .master-card.selected {
-            border-color: var(--primary);
-            background: #eef2ff;
-        }
-
-        .master-avatar {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--primary), var(--accent));
-            margin: 0 auto 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--white);
-            font-size: 2em;
-            font-weight: bold;
-        }
-
-        .rating {
-            color: #fbbf24;
-            font-size: 1.2em;
-            margin: 10px 0;
-        }
-
-        @media (max-width: 768px) {
-            .main-content {
-                grid-template-columns: 1fr;
-            }
-
-            h1 {
-                font-size: 2em;
-            }
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-            animation: fadeIn 0.3s;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .modal-content {
-            background-color: white;
-            margin: 5% auto;
-            padding: 0;
-            border-radius: 20px;
-            width: 90%;
-            max-width: 500px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            animation: slideIn 0.3s;
-        }
-
-        @keyframes slideIn {
-            from { transform: translateY(-50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        .modal-header {
-            padding: 30px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: white;
-            border-radius: 20px 20px 0 0;
-        }
-
-        .modal-body {
-            padding: 30px;
-        }
-
-        .close {
-            color: white;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .close:hover {
-            opacity: 0.7;
-        }
-
-        .profile-menu {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--primary), var(--accent));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 1.2em;
-        }
-
-        .profile-dropdown {
-            position: relative;
-            display: inline-block;
-        }
-
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            right: 0;
-            background: white;
-            min-width: 200px;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-            border-radius: 10px;
-            padding: 10px 0;
-            margin-top: 10px;
-        }
-
-        .dropdown-content a {
-            display: block;
-            padding: 12px 20px;
-            text-decoration: none;
-            color: var(--dark);
-        }
-
-        .dropdown-content a:hover {
-            background: var(--light);
-        }
-
-        .payment-section {
-            background: #f0fdf4;
-            border: 2px solid #10b981;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 20px 0;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/style/style.css">
 </head>
 <body>
     <!-- Login Modal -->
@@ -385,8 +27,12 @@
                     </div>
                     <button type="submit" class="btn-primary">Войти</button>
                 </form>
-                <div class="divider">или</div>
-                <button class="btn-secondary" onclick="showRegisterForm()">Создать аккаунт</button>
+                <div class="divider" id="dividerOr" style="display: flex; align-items: center; justify-content: center; gap: 10px; margin: 20px 0;">
+                    <span style="flex: 1; height: 1px; background: #e2e8f0;"></span>
+                    <span style="color: #999;">или</span>
+                    <span style="flex: 1; height: 1px; background: #e2e8f0;"></span>
+                </div>
+                <button class="btn-secondary" id="btnCreateAccount" onclick="showRegisterForm()">Создать аккаунт</button>
                 
                 <!-- Register Form (hidden by default) -->
                 <div id="registerForm" style="display: none; margin-top: 20px;">
@@ -407,7 +53,8 @@
                             <label for="regPassword">Пароль</label>
                             <input type="password" id="regPassword" required>
                         </div>
-                        <button type="submit" class="btn-primary">Зарегистрироваться</button>
+                        <button type="submit" class="btn-primary" style="margin-top: 10px;">Зарегистрироваться</button>
+                        <button type="button" class="btn-secondary" onclick="hideRegisterForm()" style="margin-top: 10px; width: auto; display: block; margin-left: auto; margin-right: auto;">Войти</button>
                     </form>
                 </div>
             </div>
@@ -416,17 +63,17 @@
     <div class="container">
         <header>
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                <div>
+                <div style="flex: 1;">
                     <h1>✨ BEEP</h1>
                     <p class="tagline">Auto service Booking System</p>
                 </div>
-                <button onclick="openLoginModal()" style="padding: 12px 24px; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 8px; font-weight: 600; margin-top: 10px; cursor: pointer;">Войти</button>
+                <button onclick="openLoginModal()" style="padding: 15px 30px; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 30px; font-weight: 600; font-size: 24px; cursor: pointer; box-shadow: 0 2px 12px rgba(102, 126, 234, 0.3); white-space: nowrap; min-width: auto; width: auto; margin-right: 50px;">Войти</button>
             </div>
         </header>
 
         <div class="main-content">
             <div class="card">
-                <h2>📋 Book Your Service</h2>
+                <h2>📚 Book Your Service</h2>
                 
                 <div class="form-group">
                     <label for="category">Category</label>
@@ -455,13 +102,24 @@
             <div class="card">
                 <h2>📅 Select Master & Time</h2>
                 
-                <div id="masters-container" class="masters-grid">
-                    <div class="loading">Loading masters...</div>
+                <div class="form-group">
+                    <label for="master-dropdown">Master</label>
+                    <div class="custom-dropdown" id="master-dropdown">
+                        <div class="dropdown-header" onclick="toggleMasterDropdown()">
+                            <span id="selected-master">Select a master...</span>
+                            <span class="arrow">▼</span>
+                        </div>
+                        <div class="dropdown-body" id="master-dropdown-body" style="display: none;">
+                            <div id="masters-container" class="masters-grid-dropdown">
+                                <div class="loading">Loading masters...</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div style="margin-top: 20px;">
                     <label for="appointment-date" style="display: block; margin-bottom: 8px;">Date</label>
-                    <input type="date" id="appointment-date" required>
+                    <input type="date" id="appointment-date" onchange="updateTimeSlots()" required>
                 </div>
 
                 <div style="margin-top: 15px;">
@@ -476,7 +134,7 @@
                     <textarea id="comment" rows="3" placeholder="Any special instructions..."></textarea>
                 </div>
 
-                <button onclick="bookAppointment()" style="margin-top: 20px;">📝 Book Appointment</button>
+                <button onclick="bookAppointment()" style="margin-top: 20px;">📅 Book Appointment</button>
             </div>
         </div>
 
@@ -486,371 +144,14 @@
         </div>
 
         <div class="card" style="margin-top: 30px;">
-            <h2>🕐 My Appointments</h2>
+            <h2>📋 My Appointments</h2>
             <button onclick="loadMyAppointments()">View My Appointments</button>
             <div id="appointments-list" style="margin-top: 20px;"></div>
         </div>
     </div>
 
-    <script>
-        const API_URL = window.location.origin + '/api/v1';
-        let selectedMasterId = null;
-        let selectedServiceId = null;
-
-        // Load categories on page load
-        window.onload = function() {
-            loadCategories();
-            loadMasters();
-            loadCars();
-            setDefaultDate();
-        };
-
-        function setDefaultDate() {
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            document.getElementById('appointment-date').value = tomorrow.toISOString().split('T')[0];
-        }
-
-        async function loadCategories() {
-            try {
-                const response = await fetch(`${API_URL}/categories`);
-                const data = await response.json();
-                const select = document.getElementById('category');
-                select.innerHTML = '<option value="">Select a category...</option>';
-                data.forEach(cat => {
-                    const option = document.createElement('option');
-                    option.value = cat.id;
-                    option.textContent = cat.name;
-                    select.appendChild(option);
-                });
-            } catch (error) {
-                console.error('Error loading categories:', error);
-            }
-        }
-
-        async function loadServices() {
-            const categoryId = document.getElementById('category').value;
-            if (!categoryId) return;
-
-            try {
-                const response = await fetch(`${API_URL}/services?category_id=${categoryId}`);
-                const data = await response.json();
-                const select = document.getElementById('service');
-                select.innerHTML = '<option value="">Select a service...</option>';
-                data.forEach(service => {
-                    const option = document.createElement('option');
-                    option.value = service.id;
-                    option.textContent = service.name;
-                    select.appendChild(option);
-                });
-            } catch (error) {
-                console.error('Error loading services:', error);
-            }
-        }
-
-        async function loadCars() {
-            selectedServiceId = document.getElementById('service').value;
-            
-            try {
-                const response = await fetch(`${API_URL}/cars`);
-                const data = await response.json();
-                const select = document.getElementById('car');
-                select.innerHTML = '<option value="">Select a car...</option>';
-                data.forEach(car => {
-                    const option = document.createElement('option');
-                    option.value = car.id;
-                    option.textContent = `${car.brand} ${car.model}`;
-                    select.appendChild(option);
-                });
-            } catch (error) {
-                console.error('Error loading cars:', error);
-            }
-        }
-
-        async function loadMasters() {
-            try {
-                const response = await fetch(`${API_URL}/masters`);
-                const data = await response.json();
-                const container = document.getElementById('masters-container');
-                
-                if (data.length === 0) {
-                    container.innerHTML = '<div class="loading">No masters available</div>';
-                    return;
-                }
-
-                container.innerHTML = '';
-                data.forEach(master => {
-                    const card = document.createElement('div');
-                    card.className = 'master-card';
-                    card.onclick = () => selectMaster(master.id);
-                    card.innerHTML = `
-                        <div class="master-avatar">${master.name.charAt(0)}</div>
-                        <h3>${master.name}</h3>
-                        <div class="rating">⭐ ${master.rating || 'N/A'}</div>
-                        <p>${master.specialization || 'Expert'}</p>
-                    `;
-                    container.appendChild(card);
-                });
-            } catch (error) {
-                console.error('Error loading masters:', error);
-                document.getElementById('masters-container').innerHTML = '<div class="error">Error loading masters</div>';
-            }
-        }
-
-        function selectMaster(masterId) {
-            selectedMasterId = masterId;
-            document.querySelectorAll('.master-card').forEach(card => {
-                card.classList.remove('selected');
-            });
-            event.currentTarget.classList.add('selected');
-            updateTimeSlots();
-        }
-
-        async function updateTimeSlots() {
-            if (!selectedMasterId) return;
-            
-            const date = document.getElementById('appointment-date').value;
-            if (!date) return;
-
-            try {
-                const response = await fetch(`${API_URL}/masters/${selectedMasterId}/available-slots?date=${date}`);
-                const data = await response.json();
-                const select = document.getElementById('appointment-time');
-                select.innerHTML = '<option value="">Select time slot...</option>';
-                
-                if (data.slots && data.slots.length > 0) {
-                    data.slots.forEach(slot => {
-                        const option = document.createElement('option');
-                        option.value = slot;
-                        option.textContent = slot;
-                        select.appendChild(option);
-                    });
-                } else {
-                    const option = document.createElement('option');
-                    option.textContent = 'No slots available';
-                    select.appendChild(option);
-                }
-            } catch (error) {
-                console.error('Error loading time slots:', error);
-            }
-        }
-
-        document.getElementById('appointment-date').addEventListener('change', updateTimeSlots);
-
-        async function calculatePrice() {
-            const serviceId = document.getElementById('service').value;
-            const carId = document.getElementById('car').value;
-
-            if (!serviceId || !carId) {
-                showResults('Please select both service and car', 'error');
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_URL}/pricing/calculate`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ service_id: parseInt(serviceId), car_id: parseInt(carId) })
-                });
-
-                const data = await response.json();
-                showResults(`Estimated Price: $${data.price}`, 'success');
-            } catch (error) {
-                showResults('Error calculating price', 'error');
-                console.error(error);
-            }
-        }
-
-        async function bookAppointment() {
-            if (!selectedMasterId || !selectedServiceId) {
-                showResults('Please select a master and service', 'error');
-                return;
-            }
-
-            const date = document.getElementById('appointment-date').value;
-            const time = document.getElementById('appointment-time').value;
-            const comment = document.getElementById('comment').value;
-
-            if (!date || !time) {
-                showResults('Please select date and time', 'error');
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_URL}/appointments`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        master_id: selectedMasterId,
-                        service_id: parseInt(selectedServiceId),
-                        date: date,
-                        time: time,
-                        comment: comment
-                    })
-                });
-
-                const data = await response.json();
-                showResults(`Appointment booked successfully! ID: ${data.id}`, 'success');
-                loadMyAppointments();
-            } catch (error) {
-                showResults('Error booking appointment', 'error');
-                console.error(error);
-            }
-        }
-
-        async function loadMyAppointments() {
-            try {
-                const response = await fetch(`${API_URL}/appointments`);
-                const data = await response.json();
-                const container = document.getElementById('appointments-list');
-
-                if (data.length === 0) {
-                    container.innerHTML = '<div class="loading">No appointments found</div>';
-                    return;
-                }
-
-                container.innerHTML = '';
-                data.forEach(apt => {
-                    const div = document.createElement('div');
-                    div.className = 'result-item';
-                    div.innerHTML = `
-                        <h3>Appointment #${apt.id}</h3>
-                        <p><strong>Date:</strong> ${apt.date} at ${apt.time}</p>
-                        <p><strong>Status:</strong> ${apt.status}</p>
-                        <p><strong>Comment:</strong> ${apt.comment || 'None'}</p>
-                    `;
-                    container.appendChild(div);
-                });
-            } catch (error) {
-                console.error('Error loading appointments:', error);
-            }
-        }
-
-        function showResults(message, type) {
-            const results = document.getElementById('results');
-            const content = document.getElementById('results-content');
-            
-            results.style.display = 'block';
-            content.innerHTML = `<div class="${type}">${message}</div>`;
-        }
-
-        // Login Modal Functions
-        function openLoginModal() {
-            document.getElementById('loginModal').style.display = 'block';
-        }
-
-        function closeLoginModal() {
-            document.getElementById('loginModal').style.display = 'none';
-        }
-
-        window.onclick = function(event) {
-            const modal = document.getElementById('loginModal');
-            if (event.target == modal) {
-                closeLoginModal();
-            }
-        }
-
-        function showRegisterForm() {
-            document.getElementById('registerForm').style.display = 'block';
-        }
-
-        async function handleLogin(event) {
-            event.preventDefault();
-            const email = document.getElementById('modalEmail').value;
-            const password = document.getElementById('modalPassword').value;
-            
-            try {
-                const response = await fetch(`${API_URL}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    localStorage.setItem('token', data.token);
-                    localStorage.setItem('user', JSON.stringify(data.user));
-                    closeLoginModal();
-                    location.reload();
-                } else {
-                    document.getElementById('loginError').textContent = data.error || 'Ошибка входа';
-                    document.getElementById('loginError').style.display = 'block';
-                }
-            } catch (error) {
-                document.getElementById('loginError').textContent = 'Ошибка подключения';
-                document.getElementById('loginError').style.display = 'block';
-            }
-        }
-
-        async function handleRegister(event) {
-            event.preventDefault();
-            const name = document.getElementById('regName').value;
-            const email = document.getElementById('regEmail').value;
-            const phone = document.getElementById('regPhone').value;
-            const password = document.getElementById('regPassword').value;
-            
-            try {
-                const response = await fetch(`${API_URL}/auth/register`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, email, phone, password })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    localStorage.setItem('token', data.token);
-                    localStorage.setItem('user', JSON.stringify(data.user));
-                    closeLoginModal();
-                    location.reload();
-                } else {
-                    document.getElementById('loginError').textContent = data.error || 'Ошибка регистрации';
-                    document.getElementById('loginError').style.display = 'block';
-                }
-            } catch (error) {
-                document.getElementById('loginError').textContent = 'Ошибка подключения';
-                document.getElementById('loginError').style.display = 'block';
-            }
-        }
-
-        // Check if user is logged in on page load
-        const user = localStorage.getItem('user');
-        if (user) {
-            const userObj = JSON.parse(user);
-            const header = document.querySelector('header > div');
-            header.innerHTML = `
-                <div>
-                    <h1>✨ BEEP</h1>
-                    <p class="tagline">Auto service Booking System</p>
-                </div>
-                <div class="profile-menu">
-                    <div class="profile-dropdown">
-                        <button class="avatar" onclick="toggleProfile()">${userObj.name.charAt(0)}</button>
-                        <div id="profileDropdown" class="dropdown-content">
-                            <a href="#" onclick="viewProfile()">Личный кабинет</a>
-                            <a href="#" onclick="logout()">Выйти</a>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function toggleProfile() {
-            const dropdown = document.getElementById('profileDropdown');
-            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
-        }
-
-        function logout() {
-            localStorage.removeItem('user');
-            localStorage.removeItem('token');
-            location.reload();
-        }
-
-        function viewProfile() {
-            alert('Переход в личный кабинет');
-        }
-    </script>
+    <script src="/static/script/script.js"></script>
 </body>
 </html>
+
 

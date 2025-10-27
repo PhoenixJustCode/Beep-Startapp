@@ -70,6 +70,7 @@ func SetupRouter(h *handlers.Handlers) *gin.Engine {
 			appointments.POST("", h.CreateAppointment)
 			appointments.GET("", h.GetUserAppointments)
 			appointments.GET("/:id", h.GetAppointmentByID)
+			appointments.PUT("/:id", h.UpdateAppointment)
 			appointments.DELETE("/:id", h.CancelAppointment)
 		}
 	}
@@ -79,8 +80,11 @@ func SetupRouter(h *handlers.Handlers) *gin.Engine {
 	r.GET("/", func(c *gin.Context) {
 		c.File("./static/index.html")
 	})
-	r.GET("/login.html", func(c *gin.Context) {
+	r.GET("/login", func(c *gin.Context) {
 		c.File("./static/login.html")
+	})
+	r.GET("/profile", func(c *gin.Context) {
+		c.File("./static/profile.html")
 	})
 	r.NoRoute(func(c *gin.Context) {
 		c.File("./static/index.html")

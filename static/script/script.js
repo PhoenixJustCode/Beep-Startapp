@@ -48,7 +48,7 @@ async function loadCategories() {
         console.log(`Loaded ${data.length} categories, ${uniqueCategories.length} unique`);
         
         const select = document.getElementById('category');
-        select.innerHTML = '<option value="">Select a category...</option>';
+        select.innerHTML = '<option value="">Выберите категорию...</option>';
         
         uniqueCategories.forEach(cat => {
             const option = document.createElement('option');
@@ -57,7 +57,7 @@ async function loadCategories() {
             select.appendChild(option);
         });
     } catch (error) {
-        console.error('Error loading categories:', error);
+        console.error('Ошибка загрузки категорий:', error);
     }
 }
 
@@ -78,7 +78,7 @@ async function loadServices() {
         console.log(`Loaded ${data.length} services, ${uniqueServices.length} unique`);
         
         const select = document.getElementById('service');
-        select.innerHTML = '<option value="">Select a service...</option>';
+        select.innerHTML = '<option value="">Выберите услугу...</option>';
         
         uniqueServices.forEach(service => {
             const option = document.createElement('option');
@@ -87,7 +87,7 @@ async function loadServices() {
             select.appendChild(option);
         });
     } catch (error) {
-        console.error('Error loading services:', error);
+        console.error('Ошибка загрузки услуг:', error);
     }
 }
 
@@ -111,7 +111,7 @@ async function loadCars() {
         console.log(`Loaded ${data.length} cars, ${uniqueCars.length} unique`);
         
         const select = document.getElementById('car');
-        select.innerHTML = '<option value="">Select a car...</option>';
+        select.innerHTML = '<option value="">Выберите автомобиль...</option>';
         
         uniqueCars.forEach(car => {
             const option = document.createElement('option');
@@ -120,7 +120,7 @@ async function loadCars() {
             select.appendChild(option);
         });
     } catch (error) {
-        console.error('Error loading cars:', error);
+        console.error('Ошибка загрузки автомобилей:', error);
     }
 }
 
@@ -144,14 +144,14 @@ async function loadMasters() {
         const container = document.getElementById('masters-container');
 
         if (uniqueMasters.length === 0) {
-            container.innerHTML = '<div class="loading">No masters available</div>';
+            container.innerHTML = '<div class="loading">Мастера недоступны</div>';
             return;
         }
 
         renderMasters(uniqueMasters);
     } catch (error) {
-        console.error('Error loading masters:', error);
-        document.getElementById('masters-container').innerHTML = '<div class="error">Error loading masters</div>';
+        console.error('Ошибка загрузки мастеров:', error);
+        document.getElementById('masters-container').innerHTML = '<div class="error">Ошибка загрузки мастеров</div>';
     }
 }
 
@@ -253,7 +253,7 @@ async function updateTimeSlots() {
 const response = await fetch(`${API_URL}/masters/${selectedMasterId}/available-slots?date=${date}`);
 const data = await response.json();
 const select = document.getElementById('appointment-time');
-select.innerHTML = '<option value="">Select time slot...</option>';
+        select.innerHTML = '<option value="">Выберите время...</option>';
 
 if (data.slots && data.slots.length > 0) {
     data.slots.forEach(slot => {
@@ -264,11 +264,11 @@ select.appendChild(option);
     });
 } else {
     const option = document.createElement('option');
-    option.textContent = 'No slots available';
+    option.textContent = 'Нет доступного времени';
     select.appendChild(option);
 }
     } catch (error) {
-console.error('Error loading time slots:', error);
+console.error('Ошибка загрузки времени:', error);
     }
 }
 
@@ -279,7 +279,7 @@ async function calculatePrice() {
     const carId = document.getElementById('car').value;
 
     if (!serviceId || !carId) {
-        showResults('Please select both service and car', 'error');
+        showResults('Пожалуйста, выберите услугу и автомобиль', 'error');
         return;
     }
 
@@ -291,13 +291,13 @@ async function calculatePrice() {
         });
 
         if (!response.ok) {
-            throw new Error('Failed to calculate price');
+            throw new Error('Не удалось рассчитать цену');
         }
 
         const data = await response.json();
         displayPriceCalculation(data);
     } catch (error) {
-        showResults('Error calculating price: ' + error.message, 'error');
+        showResults('Ошибка расчета цены: ' + error.message, 'error');
         console.error(error);
     }
 }
@@ -369,7 +369,7 @@ function displayPriceCalculation(data) {
 
 async function bookAppointment() {
     if (!selectedMasterId || !selectedServiceId) {
-showResults('Please select a master and service', 'error');
+showResults('Пожалуйста, выберите мастера и услугу', 'error');
 return;
     }
 
@@ -378,7 +378,7 @@ return;
     const comment = document.getElementById('comment').value;
 
     if (!date || !time) {
-showResults('Please select date and time', 'error');
+showResults('Пожалуйста, выберите дату и время', 'error');
 return;
     }
 
@@ -403,13 +403,13 @@ comment: comment
 
 const data = await response.json();
 if (response.ok) {
-    showResults(`Appointment booked successfully! ID: ${data.id}`, 'success');
+    showResults(`Запись успешно создана! ID: ${data.id}`, 'success');
 } else {
-    showResults(data.error || 'Error booking appointment', 'error');
+    showResults(data.error || 'Ошибка создания записи', 'error');
 }
 loadMyAppointments();
     } catch (error) {
-showResults('Error booking appointment', 'error');
+showResults('Ошибка создания записи', 'error');
 console.error(error);
     }
 }
@@ -476,8 +476,8 @@ async function loadMyAppointments() {
             container.appendChild(div);
         });
     } catch (error) {
-        console.error('Error loading appointments:', error);
-        document.getElementById('appointments-list').innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки заказов</p>';
+        console.error('Ошибка загрузки записей:', error);
+        document.getElementById('appointments-list').innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки записей</p>';
     }
 }
 
@@ -585,9 +585,12 @@ if (user) {
     const userObj = JSON.parse(user);
     const header = document.querySelector('header > div');
     header.innerHTML = `
-<div>
-    <h1>✨ BEEP</h1>
-    <p class="tagline">Auto service Booking System</p>
+<div style="flex: 1; display: flex; align-items: center; gap: 15px;">
+    <a href="/"><img src="/static/logo.png?v=3&t=1730123456" alt="BEEP" style="width: 60px; height: 60px;"></a>
+    <div>
+        <h1 style="margin: 0;">BEEP</h1>
+        <p class="tagline" style="margin: 0;">Система записи в автосервис</p>
+    </div>
 </div>
 <div class="profile-menu">
     <div class="profile-dropdown">

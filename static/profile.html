@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Личный кабинет - BEEP</title>
     <link rel="stylesheet" href="/static/style/style.css">
 </head>
@@ -10,9 +13,12 @@
     <div class="container">
         <header>
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                <div style="flex: 1;">
-                    <h1>✨ BEEP</h1>
-                    <p class="tagline">Личный кабинет</p>
+                <div style="flex: 1; display: flex; align-items: center; gap: 15px;">
+                    <a href="/"><img src="/static/logo.png?v=3&t=1730123456" alt="BEEP" style="width: 60px; height: 60px;"></a>
+                    <div>
+                        <h1 style="margin: 0;">BEEP</h1>
+                        <p class="tagline" style="margin: 0;">Личный кабинет</p>
+                    </div>
                 </div>
                 <button class="home-button" onclick="window.location.href='/'">Главная</button>            
             </div>
@@ -31,7 +37,7 @@
             <div class="main-content">
             <!-- User Profile Card -->
             <div class="card">
-                <h2 style="margin-bottom: 20px;">👤 Мой профиль</h2>
+                <h2 style="margin-bottom: 20px;">Мой профиль</h2>
                 
                 <!-- Profile Picture -->
                 <div style="text-align: center; margin-bottom: 30px;">
@@ -47,17 +53,17 @@
                     <div class="info-item">
                         <label>Имя:</label>
                         <span id="userName">-</span>
-                        <button class="edit-field-btn" onclick="openEditModal('name')" title="Редактировать имя">✏️</button>
+                        <button class="edit-field-btn" onclick="openEditModal('name')" title="Редактировать имя">И</button>
                     </div>
                     <div class="info-item">
                         <label>Email:</label>
                         <span id="userEmail">-</span>
-                        <button class="edit-field-btn" onclick="openEditModal('email')" title="Редактировать email">✏️</button>
+                        <button class="edit-field-btn" onclick="openEditModal('email')" title="Редактировать email">И</button>
                     </div>
                     <div class="info-item">
                         <label>Телефон:</label>
                         <span id="userPhone">-</span>
-                        <button class="edit-field-btn" onclick="openEditModal('phone')" title="Редактировать телефон">✏️</button>
+                        <button class="edit-field-btn" onclick="openEditModal('phone')" title="Редактировать телефон">И</button>
                     </div>
                     <div class="info-item">
                         <label>Дата регистрации:</label>
@@ -108,7 +114,7 @@
 
             <!-- Appointments Card -->
             <div class="card">
-                <h2>📅 Мои записи</h2>
+                <h2>Мои записи</h2>
                 <div id="userAppointments" style="max-height: 500px; overflow-y: auto;">
                     <p style="color: #999;">Загрузка...</p>
                 </div>
@@ -229,7 +235,7 @@
                     </div>
                     
                     <div style="text-align: center; margin-top: 20px;">
-                        <button onclick="showMasterEditForm()" style="padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600;">✏️ Редактировать профиль</button>
+                        <button onclick="showMasterEditForm()" style="padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600;">Редактировать профиль</button>
                     </div>
                 </div>
 
@@ -255,8 +261,8 @@
 
                 <!-- Works Gallery Card -->
                 <div class="card">
-                    <h2 style="margin-bottom: 20px;">🛠️ Мои работы</h2>
-                    <button onclick="showAddWorkModal()" style="margin-bottom: 20px; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">➕ Добавить работу</button>
+                    <h2 style="margin-bottom: 20px;">Мои работы</h2>
+                    <button onclick="showAddWorkModal()" style="margin-bottom: 20px; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Добавить работу</button>
                     <div id="worksGallery" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;">
                         <!-- Works will be loaded here -->
                     </div>
@@ -264,10 +270,10 @@
 
                 <!-- Reviews Card -->
                 <div class="card">
-                    <h2 style="margin-bottom: 20px;">⭐ Отзывы</h2>
+                    <h2 style="margin-bottom: 20px;">Отзывы</h2>
                     <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                        <button onclick="showReviewsModal()" style="flex: 1; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">👁️ Смотреть отзывы</button>
-                        <button onclick="showAddReviewModal()" style="flex: 1; padding: 10px 20px; background: var(--secondary); color: white; border: none; border-radius: 8px; cursor: pointer;">➕ Добавить отзыв</button>
+                        <button onclick="showReviewsModal()" style="flex: 1; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Смотреть отзывы</button>
+                        <button onclick="showAddReviewModal()" style="flex: 1; padding: 10px 20px; background: var(--secondary); color: white; border: none; border-radius: 8px; cursor: pointer;">Добавить отзыв</button>
                     </div>
                     <div id="reviewsPreview">
                         <!-- Reviews preview will be loaded here -->
@@ -283,7 +289,7 @@
 
                <!-- Delete Master Profile -->
                <div class="card">
-                   <h2 style="margin-bottom: 20px;">🗑️ Управление профилем</h2>
+                   <h2 style="margin-bottom: 20px;">Управление профилем</h2>
                    <p style="color: #64748b;">Удалить профиль мастера</p>
                    <button onclick="deleteMasterProfile()" style="margin-top: 20px; padding: 10px 20px; background: #e74c3c; color: white; border: none; border-radius: 8px; cursor: pointer;">Удалить профиль мастера</button>
                </div>

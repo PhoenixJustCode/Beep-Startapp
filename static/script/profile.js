@@ -84,7 +84,7 @@ async function saveProfile(event) {
         });
 
         if (!response.ok) {
-            throw new Error('Failed to update profile');
+            throw new Error('Не удалось обновить профиль');
         }
 
         const data = await response.json();
@@ -111,7 +111,7 @@ async function saveProfile(event) {
         document.getElementById('profileEditMode').style.display = 'none';
         
     } catch (error) {
-        console.error('Error updating profile:', error);
+        console.error('Ошибка обновления профиля:', error);
         showMessage('Ошибка при обновлении профиля: ' + error.message, 'error');
     }
 }
@@ -180,7 +180,7 @@ async function saveFieldEdit(event) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || 'Failed to update field');
+            throw new Error(error.error || 'Не удалось обновить поле');
         }
 
         // Update display
@@ -207,7 +207,7 @@ async function saveFieldEdit(event) {
         showMessage('Успешно обновлено!', 'success');
         
     } catch (error) {
-        console.error('Error updating field:', error);
+        console.error('Ошибка обновления поля:', error);
         showMessage(`Ошибка при обновлении: ${error.message}`, 'error');
     }
 }
@@ -269,7 +269,7 @@ async function uploadProfilePhoto(event) {
         
         // Check if response is ok
         if (!response.ok) {
-            let errorMessage = 'Failed to upload photo';
+            let errorMessage = 'Не удалось загрузить фото';
             try {
                 const errorData = await response.json();
                 errorMessage = errorData.error || errorMessage;
@@ -296,7 +296,7 @@ async function uploadProfilePhoto(event) {
         showMessage('Фото успешно загружено!', 'success');
         
     } catch (error) {
-        console.error('Error uploading photo:', error);
+        console.error('Ошибка загрузки фото:', error);
         showMessage(`Ошибка загрузки фото: ${error.message}`, 'error');
     }
 }
@@ -326,7 +326,7 @@ function editAppointment(appointmentId) {
             modal.style.display = 'flex';
         })
         .catch(error => {
-            console.error('Error loading appointment:', error);
+            console.error('Ошибка загрузки записи:', error);
             showMessage('Ошибка загрузки записи', 'error');
         });
 }
@@ -352,13 +352,13 @@ async function cancelAppointment(appointmentId) {
         });
         
         if (!response.ok) {
-            let errorMessage = 'Failed to cancel appointment';
+            let errorMessage = 'Не удалось отменить запись';
             try {
                 const error = await response.json();
                 errorMessage = error.error || errorMessage;
             } catch (e) {
                 const text = await response.text();
-                console.error('Cancel appointment error (non-JSON):', text);
+                console.error('Ошибка отмены записи (не JSON):', text);
                 errorMessage = text || errorMessage;
             }
             throw new Error(errorMessage);
@@ -368,7 +368,7 @@ async function cancelAppointment(appointmentId) {
         loadUserAppointments(); // Reload appointments
         
     } catch (error) {
-        console.error('Error cancelling appointment:', error);
+        console.error('Ошибка отмены записи:', error);
         showMessage(`Ошибка отмены записи: ${error.message}`, 'error');
     }
 }
@@ -388,13 +388,13 @@ async function deleteAppointment(appointmentId) {
         });
         
         if (!response.ok) {
-            let errorMessage = 'Failed to delete appointment';
+            let errorMessage = 'Не удалось удалить запись';
             try {
                 const error = await response.json();
                 errorMessage = error.error || errorMessage;
             } catch (e) {
                 const text = await response.text();
-                console.error('Delete appointment error (non-JSON):', text);
+                console.error('Ошибка удаления записи (не JSON):', text);
                 errorMessage = text || errorMessage;
             }
             throw new Error(errorMessage);
@@ -404,7 +404,7 @@ async function deleteAppointment(appointmentId) {
         loadUserAppointments(); // Reload appointments
         
     } catch (error) {
-        console.error('Error deleting appointment:', error);
+        console.error('Ошибка удаления записи:', error);
         showMessage(`Ошибка удаления записи: ${error.message}`, 'error');
     }
 }
@@ -429,7 +429,7 @@ async function saveAppointmentChanges(event) {
         });
 
         if (!response.ok) {
-            throw new Error('Failed to update appointment');
+            throw new Error('Не удалось обновить запись');
         }
 
         showMessage('Запись успешно обновлена!', 'success');
@@ -437,7 +437,7 @@ async function saveAppointmentChanges(event) {
         loadUserAppointments(); // Reload appointments
         
     } catch (error) {
-        console.error('Error updating appointment:', error);
+        console.error('Ошибка обновления записи:', error);
         showMessage('Ошибка при обновлении записи: ' + error.message, 'error');
     }
 }
@@ -511,8 +511,8 @@ async function loadUserAppointments() {
             container.appendChild(div);
         });
     } catch (error) {
-        console.error('Error loading appointments:', error);
-        document.getElementById('userAppointments').innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки заказов</p>';
+        console.error('Ошибка загрузки записей:', error);
+        document.getElementById('userAppointments').innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки записей</p>';
     }
 }
 
@@ -537,7 +537,7 @@ async function loadMasterProfile() {
         }
         
         if (!response.ok) {
-            throw new Error('Failed to load master profile');
+            throw new Error('Не удалось загрузить профиль мастера');
         }
         
         const master = await response.json();
@@ -581,7 +581,7 @@ async function loadMasterProfile() {
         loadMasterReviews();
         
     } catch (error) {
-        console.error('Error loading master profile:', error);
+        console.error('Ошибка загрузки профиля мастера:', error);
         // Show no profile state
         document.getElementById('noMasterProfile').style.display = 'block';
         document.getElementById('createMasterForm').style.display = 'none';
@@ -640,14 +640,14 @@ async function createMasterProfile(event) {
         
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || 'Failed to create master profile');
+            throw new Error(error.error || 'Не удалось создать профиль мастера');
         }
         
         showMessage('Профиль мастера успешно создан!', 'success');
         loadMasterProfile(); // Reload to show the new profile
         
     } catch (error) {
-        console.error('Error creating master profile:', error);
+        console.error('Ошибка создания профиля мастера:', error);
         showMessage(`Ошибка создания профиля: ${error.message}`, 'error');
     }
 }
@@ -696,7 +696,7 @@ async function loadMasterWorks() {
         });
         
     } catch (error) {
-        console.error('Error loading master works:', error);
+        console.error('Ошибка загрузки работ мастера:', error);
         document.getElementById('worksGallery').innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки работ</p>';
     }
 }
@@ -726,7 +726,7 @@ async function loadMasterPaymentInfo() {
         document.getElementById('halykCard').textContent = info.halyk_card || '-';
         
     } catch (error) {
-        console.error('Error loading payment info:', error);
+        console.error('Ошибка загрузки платежной информации:', error);
     }
 }
 
@@ -778,7 +778,7 @@ async function loadMasterReviews() {
         }
         
     } catch (error) {
-        console.error('Error loading reviews:', error);
+        console.error('Ошибка загрузки отзывов:', error);
         document.getElementById('reviewsPreview').innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки отзывов</p>';
     }
 }
@@ -848,7 +848,7 @@ async function saveWork(event) {
                 console.log('Photo upload response status:', response.status);
                 
                 if (!response.ok) {
-                    let errorMessage = 'Failed to upload photo';
+                    let errorMessage = 'Не удалось загрузить фото';
                     try {
                         const error = await response.json();
                         errorMessage = error.error || errorMessage;
@@ -909,7 +909,7 @@ async function saveWork(event) {
         
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || 'Failed to save work');
+            throw new Error(error.error || 'Не удалось сохранить работу');
         }
         
         showMessage(workId ? 'Работа успешно обновлена!' : 'Работа успешно добавлена!', 'success');
@@ -917,7 +917,7 @@ async function saveWork(event) {
         loadMasterWorks(); // Reload works
         
     } catch (error) {
-        console.error('Error saving work:', error);
+        console.error('Ошибка сохранения работы:', error);
         showMessage(`Ошибка сохранения работы: ${error.message}`, 'error');
     }
 }
@@ -971,7 +971,7 @@ async function loadAllReviews() {
         });
         
     } catch (error) {
-        console.error('Error loading all reviews:', error);
+        console.error('Ошибка загрузки всех отзывов:', error);
         document.getElementById('reviewsList').innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки отзывов</p>';
     }
 }
@@ -1090,7 +1090,7 @@ async function uploadMasterPhoto(event) {
         });
         
         if (!response.ok) {
-            let errorMessage = 'Failed to upload photo';
+            let errorMessage = 'Не удалось загрузить фото';
             try {
                 const errorData = await response.json();
                 errorMessage = errorData.error || errorMessage;
@@ -1163,7 +1163,7 @@ async function loadMastersForReview() {
         });
         
     } catch (error) {
-        console.error('Error loading masters:', error);
+        console.error('Ошибка загрузки мастеров:', error);
         showMessage('Ошибка загрузки списка мастеров', 'error');
     }
 }
@@ -1226,7 +1226,7 @@ async function saveReview(event) {
         
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || 'Failed to save review');
+            throw new Error(error.error || 'Не удалось сохранить отзыв');
         }
         
         showMessage('Отзыв успешно добавлен!', 'success');
@@ -1238,7 +1238,7 @@ async function saveReview(event) {
         }
         
     } catch (error) {
-        console.error('Error saving review:', error);
+        console.error('Ошибка сохранения отзыва:', error);
         showMessage(`Ошибка сохранения отзыва: ${error.message}`, 'error');
     }
 }
@@ -1288,7 +1288,7 @@ async function saveMasterProfile(event) {
         console.log('Master profile update response status:', response.status);
         
         if (!response.ok) {
-            let errorMessage = 'Failed to update master profile';
+            let errorMessage = 'Не удалось обновить профиль мастера';
             try {
                 const error = await response.json();
                 console.error('Master profile update error:', error);
@@ -1309,7 +1309,7 @@ async function saveMasterProfile(event) {
         loadMasterProfile(); // Reload master profile
         
     } catch (error) {
-        console.error('Error updating master profile:', error);
+        console.error('Ошибка обновления профиля мастера:', error);
         showMessage(`Ошибка обновления профиля: ${error.message}`, 'error');
     }
 }
@@ -1362,7 +1362,7 @@ async function editWork(workId) {
         submitButton.textContent = 'Сохранить изменения';
         
     } catch (error) {
-        console.error('Error loading work:', error);
+        console.error('Ошибка загрузки работы:', error);
         showMessage(`Ошибка загрузки работы: ${error.message}`, 'error');
     }
 }
@@ -1384,14 +1384,14 @@ async function deleteWork(workId) {
         
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || 'Failed to delete work');
+            throw new Error(error.error || 'Не удалось удалить работу');
         }
         
         showMessage('Работа успешно удалена!', 'success');
         loadMasterWorks(); // Reload works
         
     } catch (error) {
-        console.error('Error deleting work:', error);
+        console.error('Ошибка удаления работы:', error);
         showMessage(`Ошибка удаления работы: ${error.message}`, 'error');
     }
 }

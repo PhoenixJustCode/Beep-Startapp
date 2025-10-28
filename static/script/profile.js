@@ -1314,6 +1314,59 @@ async function saveMasterProfile(event) {
     }
 }
 
+// Edit work function
+async function editWork(workId) {
+    try {
+        console.log('Loading work with ID:', workId);
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/master/works/${workId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        console.log('Load work response status:', response.status);
+        
+        if (!response.ok) {
+            let errorMessage = 'Failed to load work data';
+            try {
+                const error = await response.json();
+                errorMessage = error.error || errorMessage;
+            } catch (e) {
+                const text = await response.text();
+                console.error('Load work error (non-JSON):', text);
+                errorMessage = text || errorMessage;
+            }
+            throw new Error(errorMessage);
+        }
+        
+        const work = await response.json();
+        console.log('Loaded work data:', work);
+        
+        // Fill the form with existing data
+        document.getElementById('workId').value = work.id;
+        document.getElementById('workTitle').value = work.title;
+        document.getElementById('workDate').value = work.work_date.split('T')[0];
+        document.getElementById('workCustomer').value = work.customer_name;
+        document.getElementById('workAmount').value = work.amount;
+        
+        // Show the modal
+        document.getElementById('addWorkModal').style.display = 'flex';
+        
+        // Change the form title
+        const modalTitle = document.querySelector('#addWorkModal h2');
+        modalTitle.textContent = 'Редактировать работу';
+        
+        // Change the submit button text
+        const submitButton = document.querySelector('#addWorkForm button[type="submit"]');
+        submitButton.textContent = 'Сохранить изменения';
+        
+    } catch (error) {
+        console.error('Error loading work:', error);
+        showMessage(`Ошибка загрузки работы: ${error.message}`, 'error');
+    }
+}
+
 // Delete work function
 async function deleteWork(workId) {
     if (!confirm('Вы точно хотите удалить эту работу?')) {

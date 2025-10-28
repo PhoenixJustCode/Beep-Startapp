@@ -650,6 +650,58 @@ func (h *Handlers) UploadMasterPhoto(c *gin.Context) {
 	})
 }
 
+// Upload work photo
+func (h *Handlers) UploadWorkPhoto(c *gin.Context) {
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		log.Printf("Unauthorized work photo upload attempt")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	log.Printf("User %d uploading work photo", userID)
+
+	// Get the uploaded file
+	file, err := c.FormFile("photo")
+	if err != nil {
+		log.Printf("Error getting work photo file: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No photo uploaded"})
+		return
+	}
+
+	// Validate file type
+	if !strings.HasPrefix(file.Header.Get("Content-Type"), "image/") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File must be an image"})
+		return
+	}
+
+	// Validate file size (max 5MB)
+	if file.Size > 5*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File too large (max 5MB)"})
+		return
+	}
+
+	// Generate unique filename
+	ext := filepath.Ext(file.Filename)
+	filename := fmt.Sprintf("work_%d%s", time.Now().Unix(), ext)
+	filepath := filepath.Join("static", "uploads", filename)
+
+	// Save file
+	if err := c.SaveUploadedFile(file, filepath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+		return
+	}
+
+	photoURL := "/static/uploads/" + filename
+
+	log.Printf("Work photo uploaded successfully: %s", photoURL)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":   "Work photo uploaded successfully",
+		"photo_url": photoURL,
+	})
+}
+
 // Master Profile Handlers
 
 // GetMasterProfile gets master profile by user ID
@@ -862,6 +914,98 @@ func (h *Handlers) CreateMasterWork(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, work)
+}
+
+// GetMasterWork gets a single work by ID
+func (h *Handlers) GetMasterWork(c *gin.Context) {
+	workID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		log.Printf("Invalid work ID: %s", c.Param("id"))
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid work ID"})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		log.Printf("Unauthorized access to work %d", workID)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	master, err := h.repo.GetMasterByUserID(userID)
+	if err != nil {
+		log.Printf("Master not found for user %d", userID)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Master not found"})
+		return
+	}
+
+	log.Printf("Getting work %d for master %d (user %d)", workID, master.ID, userID)
+
+	work, err := h.repo.GetMasterWork(workID, master.ID)
+	if err != nil {
+		log.Printf("Error getting work %d: %v", workID, err)
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Work not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	log.Printf("Successfully retrieved work %d", workID)
+	c.JSON(http.StatusOK, work)
+}
+
+// UpdateMasterWork updates a work entry
+func (h *Handlers) UpdateMasterWork(c *gin.Context) {
+	workID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid work ID"})
+		return
+	}
+
+	type Request struct {
+		Title        string   `json:"title" binding:"required"`
+		WorkDate     string   `json:"work_date" binding:"required"`
+		CustomerName string   `json:"customer_name" binding:"required"`
+		Amount       float64  `json:"amount" binding:"required"`
+		PhotoURLs    []string `json:"photo_urls"`
+	}
+
+	var req Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	master, err := h.repo.GetMasterByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Master not found"})
+		return
+	}
+
+	workDate, err := time.Parse("2006-01-02", req.WorkDate)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format"})
+		return
+	}
+
+	if err := h.repo.UpdateMasterWork(workID, master.ID, req.Title, workDate, req.CustomerName, req.Amount, req.PhotoURLs); err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Work not found or does not belong to this master"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Work updated successfully"})
 }
 
 // DeleteMasterWork deletes a work entry

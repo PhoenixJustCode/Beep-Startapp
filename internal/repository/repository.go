@@ -649,6 +649,56 @@ func (r *Repository) CreateMasterWork(masterID int, title string, workDate time.
 	return &work, nil
 }
 
+// GetMasterWork gets a single work by ID
+func (r *Repository) GetMasterWork(workID, masterID int) (*models.MasterWork, error) {
+	var work models.MasterWork
+	var photoURLs sql.NullString
+
+	err := r.db.QueryRow(`
+		SELECT id, master_id, title, work_date, customer_name, amount, photo_urls, created_at
+		FROM master_works WHERE id = $1 AND master_id = $2
+	`, workID, masterID).
+		Scan(&work.ID, &work.MasterID, &work.Title, &work.WorkDate,
+			&work.CustomerName, &work.Amount, &photoURLs, &work.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	if photoURLs.Valid && photoURLs.String != "" {
+		work.PhotoURLs = []string{photoURLs.String}
+	}
+
+	return &work, nil
+}
+
+// UpdateMasterWork updates a work entry
+func (r *Repository) UpdateMasterWork(workID, masterID int, title string, workDate time.Time, customerName string, amount float64, photoURLs []string) error {
+	var photoURLsStr sql.NullString
+
+	if len(photoURLs) > 0 {
+		photoURLsStr = sql.NullString{String: photoURLs[0], Valid: true}
+	}
+
+	result, err := r.db.Exec(`
+		UPDATE master_works SET title = $1, work_date = $2, customer_name = $3, amount = $4, photo_urls = $5
+		WHERE id = $6 AND master_id = $7
+	`, title, workDate, customerName, amount, photoURLsStr, workID, masterID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
 // DeleteMasterWork deletes a work entry
 func (r *Repository) DeleteMasterWork(workID, masterID int) error {
 	result, err := r.db.Exec("DELETE FROM master_works WHERE id = $1 AND master_id = $2", workID, masterID)

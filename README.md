@@ -1,166 +1,138 @@
-# BEEP Backend API
+# BEEP - Сервис записи на автомойку
 
-Backend API для мобильного приложения BEEP — платформа для подключения клиентов с мастерами автосервисов.
-
-## Технологии
-
-- **Go 1.21**
-- **Gin** — веб-фреймворк
-- **PostgreSQL** — база данных
-- **lib/pq** — драйвер PostgreSQL
+Приложение для записи на услуги автомойки и детейлинга.
 
 ## Структура проекта
 
 ```
-.
-├── main.go
-├── go.mod
+beep_mvp/
+├── cmd/
+│   └── main.go              # Точка входа приложения
 ├── internal/
-│   ├── config/         # Конфигурация
-│   ├── database/       # Подключение к БД и миграции
-│   ├── models/         # Модели данных
-│   ├── repository/     # Слой доступа к данным
-│   ├── handlers/       # HTTP обработчики
-│   └── router/         # Роутинг
-├── Dockerfile
-├── docker-compose.yml
-└── README.md
+│   ├── config/              # Конфигурация
+│   ├── handlers/            # HTTP обработчики
+│   ├── models/              # Модели данных
+│   ├── repository/          # Работа с БД
+│   └── router/              # Маршрутизация
+├── static/                  # Статические файлы
+│   ├── uploads/            # Загруженные файлы
+│   ├── script/              # JavaScript
+│   └── *.html               # HTML страницы
+├── sample_data.sql          # Тестовые данные для БД
+├── DEPLOY.md                # Подробная инструкция по деплою
+└── go.mod                   # Зависимости
 ```
 
-## Установка и запуск
+## Быстрый старт (локальная разработка)
 
-### Требования
-- Go 1.21+
-- PostgreSQL 15+ (или Docker)
+### 1. Установка PostgreSQL
 
-### Локальная разработка
-
-1. Перейдите в директорию проекта:
-   ```bash
-   cd beep-backend
-   ```
-
-2. Установите зависимости:
-   ```bash
-   go mod download
-   ```
-
-3. Запустите PostgreSQL через Docker:
-   ```bash
-   docker-compose up -d postgres
-   ```
-
-4. Запустите приложение:
-   ```bash
-   go run main.go
-   ```
-
-### Docker
-
-Запуск всего приложения через Docker Compose:
 ```bash
-docker-compose up -d
-```
-API будет доступен по адресу: `http://localhost:8080`
+# Ubuntu/Debian
+sudo apt install postgresql
 
----
+# Windows
+# Скачайте с postgresql.org/download/
+```
+
+### 2. Создание базы данных
+
+```bash
+# Подключиться к PostgreSQL
+sudo -u postgres psql
+
+# Создать базу и пользователя
+CREATE DATABASE beep_db;
+CREATE USER beep_user WITH PASSWORD 'beep_password';
+GRANT ALL PRIVILEGES ON DATABASE beep_db TO beep_user;
+\q
+```
+
+### 3. Настройка окружения
+
+Создайте файл `.env` в корне проекта:
+
+```env
+DATABASE_URL=postgres://beep_user:beep_password@localhost:5432/beep_db?sslmode=disable
+JWT_SECRET=your-secret-key-change-this
+PORT=8080
+```
+
+### 4. Запуск приложения
+
+```bash
+# Установить зависимости
+go mod download
+
+# Запустить сервер
+go run cmd/main.go
+```
+
+Приложение будет доступно по адресу: `http://localhost:8080`
+
+### 5. Загрузка тестовых данных (опционально)
+
+```bash
+psql -U beep_user -d beep_db -f sample_data.sql
+```
+
+**Тестовые пользователи:**
+- Email: `ivan@example.com`, Пароль: `password123`
+- Email: `maria@example.com`, Пароль: `password123`
+- Email: `alex@example.com`, Пароль: `password123`
+
+## Деплой на VDS
+
+Подробная инструкция доступна в файле [DEPLOY.md](DEPLOY.md)
+
+Основные шаги:
+1. Установка PostgreSQL
+2. Установка Go
+3. Клонирование репозитория
+4. Настройка .env
+5. Сборка приложения
+6. Настройка systemd для автозапуска
 
 ## API Endpoints
 
-### Спринт 1: Калькулятор цен
+### Аутентификация
+- `POST /api/v1/auth/register` - Регистрация
+- `POST /api/v1/auth/login` - Вход
 
-#### Категории услуг
-- `GET /api/v1/categories` — получить все категории
-- `GET /api/v1/categories/:id` — получить категорию по ID
+### Пользователь
+- `GET /api/v1/user/profile` - Получить профиль
+- `PUT /api/v1/user/profile` - Обновить профиль
+- `POST /api/v1/user/photo` - Загрузить фото
 
-#### Услуги
-- `GET /api/v1/services` — получить все услуги
-- `GET /api/v1/services?category_id=1` — получить услуги по категории
-- `GET /api/v1/services/:id` — получить услугу по ID
+### Мастер
+- `POST /api/v1/master/profile` - Создать профиль мастера
+- `GET /api/v1/master/profile` - Получить профиль мастера
+- `PUT /api/v1/master/profile` - Обновить профиль мастера
+- `DELETE /api/v1/master/profile` - Удалить профиль мастера
+- `POST /api/v1/master/photo` - Загрузить фото мастера
+- `GET /api/v1/master/works` - Получить работы мастера
+- `POST /api/v1/master/works` - Добавить работу
+- `PUT /api/v1/master/works/:id` - Обновить работу
+- `DELETE /api/v1/master/works/:id` - Удалить работу
 
-#### Машины
-- `GET /api/v1/cars` — получить все марки/модели
-- `GET /api/v1/cars/:id` — получить машину по ID
+### Записи
+- `GET /api/v1/appointments` - Получить записи
+- `POST /api/v1/appointments` - Создать запись
+- `PUT /api/v1/appointments/:id` - Обновить запись
+- `PUT /api/v1/appointments/:id/cancel` - Отменить запись
+- `DELETE /api/v1/appointments/:id` - Удалить запись
 
-#### Расчет цены
-- `POST /api/v1/pricing/calculate`
-   ```json
-   {
-     "service_id": 1,
-     "car_id": 1
-   }
-   ```
+### Отзывы
+- `GET /api/v1/master/reviews` - Получить отзывы мастера
+- `POST /api/v1/reviews` - Добавить отзыв
 
----
+## Технологии
 
-### Спринт 2: Онлайн-запись к мастеру
-
-#### Мастера
-- `GET /api/v1/masters` — получить всех мастеров
-- `GET /api/v1/masters/:id` — получить мастера по ID
-- `GET /api/v1/masters/:id/reviews` — получить отзывы мастера
-- `GET /api/v1/masters/:id/schedule` — получить расписание мастера
-- `GET /api/v1/masters/:id/available-slots?date=2024-01-15` — получить доступные слоты
-
-#### Записи
-- `POST /api/v1/appointments` — создать запись
-   ```json
-   {
-     "master_id": 1,
-     "service_id": 1,
-     "date": "2024-01-15",
-     "time": "10:00",
-     "comment": "Опциональный комментарий"
-   }
-   ```
-- `GET /api/v1/appointments` — получить все мои записи
-- `GET /api/v1/appointments/:id` — получить запись по ID
-- `DELETE /api/v1/appointments/:id` — отменить запись
-
----
-
-## Примеры использования
-
-### Расчет стоимости услуги
-
-```bash
-curl -X POST http://localhost:8080/api/v1/pricing/calculate   -H "Content-Type: application/json"   -d '{
-    "service_id": 1,
-    "car_id": 1
-  }'
-```
-
-**Ответ:**
-```json
-{
-  "service_id": 1,
-  "service_name": "Замена масла",
-  "base_price": 2000,
-  "final_price": 2430,
-  "min_price": 1500,
-  "max_price": 3000
-}
-```
-
-### Создание записи к мастеру
-
-```bash
-curl -X POST http://localhost:8080/api/v1/appointments   -H "Content-Type: application/json"   -d '{
-    "master_id": 1,
-    "service_id": 1,
-    "date": "2024-01-15",
-    "time": "10:00",
-    "comment": "Почините, пожалуйста"
-  }'
-```
-
----
-
-## Разработка
-Структура базы данных автоматически создается и мигрирует при первом запуске.  
-См. `internal/database/migrations.go`
-
----
+- **Backend:** Go, Gin
+- **Database:** PostgreSQL
+- **Frontend:** HTML, JavaScript
+- **Authentication:** JWT
 
 ## Лицензия
+
 MIT

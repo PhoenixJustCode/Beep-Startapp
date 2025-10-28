@@ -10,8 +10,8 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/beep?sslmode=disable"),
-		JWTSecret:   getEnv("JWT_SECRET", "your-secret-key"),
+		DatabaseURL: getEnv("DATABASE_URL", "postgres://beep_user:beep_password@localhost:5432/beep_db?sslmode=disable"),
+		JWTSecret:   getEnv("JWT_SECRET", "your-production-secret-key-change-this"),
 		Port:        getEnv("PORT", "8080"),
 	}
 }

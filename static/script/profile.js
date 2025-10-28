@@ -104,134 +104,100 @@ async function saveProfile(event) {
     }
 }
 
-function editField(fieldName) {
+// Open edit modal for field
+function openEditModal(fieldName) {
     const fieldMap = {
-        'name': { element: 'userName', label: 'Имя', type: 'text' },
-        'email': { element: 'userEmail', label: 'Email', type: 'email' },
-        'phone': { element: 'userPhone', label: 'Телефон', type: 'tel' }
+        'name': { label: 'Имя', type: 'text' },
+        'email': { label: 'Email', type: 'email' },
+        'phone': { label: 'Телефон', type: 'tel' }
     };
     
     const field = fieldMap[fieldName];
     if (!field) return;
     
-    const spanElement = document.getElementById(field.element);
-    const currentValue = spanElement.textContent;
+    const currentValue = document.getElementById(`user${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}`).textContent;
     
-    // Create input field
-    const input = document.createElement('input');
-    input.type = field.type;
-    input.value = currentValue;
-    input.style.cssText = `
-        flex: 1;
-        padding: 8px 12px;
-        border: 2px solid var(--primary);
-        border-radius: 6px;
-        font-size: 14px;
-        outline: none;
-    `;
+    document.getElementById('editFieldName').value = fieldName;
+    document.getElementById('editFieldTitle').textContent = `Редактировать ${field.label.toLowerCase()}`;
+    document.getElementById('editFieldLabel').textContent = field.label + ':';
+    document.getElementById('editFieldValue').type = field.type;
+    document.getElementById('editFieldValue').value = currentValue;
     
-    // Create save and cancel buttons
-    const saveBtn = document.createElement('button');
-    saveBtn.innerHTML = '✓';
-    saveBtn.style.cssText = `
-        width: 32px;
-        height: 32px;
-        background: #10b981;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 14px;
-        margin-left: 5px;
-    `;
+    document.getElementById('editFieldModal').style.display = 'flex';
+    document.getElementById('editFieldValue').focus();
+    document.getElementById('editFieldValue').select();
+}
+
+// Close edit modal
+function closeEditModal() {
+    document.getElementById('editFieldModal').style.display = 'none';
+}
+
+// Close appointment edit modal
+function closeAppointmentModal() {
+    document.getElementById('editAppointmentModal').style.display = 'none';
+}
+
+// Save field edit
+async function saveFieldEdit(event) {
+    event.preventDefault();
     
-    const cancelBtn = document.createElement('button');
-    cancelBtn.innerHTML = '✕';
-    cancelBtn.style.cssText = `
-        width: 32px;
-        height: 32px;
-        background: #ef4444;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 14px;
-        margin-left: 5px;
-    `;
+    const fieldName = document.getElementById('editFieldName').value;
+    const newValue = document.getElementById('editFieldValue').value.trim();
     
-    // Replace span with input and buttons
-    const parentDiv = spanElement.parentElement;
-    parentDiv.replaceChild(input, spanElement);
-    parentDiv.appendChild(saveBtn);
-    parentDiv.appendChild(cancelBtn);
+    if (!newValue) {
+        showMessage('Поле не может быть пустым', 'error');
+        return;
+    }
     
-    // Focus input
-    input.focus();
-    input.select();
-    
-    // Save function
-    const saveField = async () => {
-        const newValue = input.value.trim();
-        if (newValue === currentValue) {
-            cancelEdit();
-            return;
+    try {
+        const token = localStorage.getItem('token');
+        
+        // Create update object with only the changed field
+        const updateData = {};
+        updateData[fieldName] = newValue;
+        
+        const response = await fetch(`${API_URL}/user/profile`, {
+            method: 'PUT',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(updateData)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to update field');
+        }
+
+        // Update display
+        const elementId = fieldName === 'name' ? 'userName' : 
+                          fieldName === 'email' ? 'userEmail' : 
+                          'userPhone';
+        
+        document.getElementById(elementId).textContent = newValue;
+        
+        // Update localStorage
+        const user = JSON.parse(localStorage.getItem('user'));
+        user[fieldName] = newValue;
+        localStorage.setItem('user', JSON.stringify(user));
+        window.currentUser = user;
+        
+        // Update profile initial if name changed
+        if (fieldName === 'name') {
+            const firstLetter = newValue ? newValue.charAt(0).toUpperCase() : 'A';
+            document.getElementById('profileInitial').textContent = firstLetter;
         }
         
-        try {
-            const token = localStorage.getItem('token');
-            const updateData = { [fieldName]: newValue };
-            
-            const response = await fetch(`${API_URL}/user/profile`, {
-                method: 'PUT',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(updateData)
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to update field');
-            }
-
-            // Update localStorage
-            const updatedUser = { ...window.currentUser, [fieldName]: newValue };
-            localStorage.setItem('user', JSON.stringify(updatedUser));
-            window.currentUser = updatedUser;
-            
-            // Update display
-            spanElement.textContent = newValue;
-            parentDiv.replaceChild(spanElement, input);
-            parentDiv.removeChild(saveBtn);
-            parentDiv.removeChild(cancelBtn);
-            
-            showMessage(`${field.label} успешно обновлен!`, 'success');
-            
-        } catch (error) {
-            console.error('Error updating field:', error);
-            showMessage(`Ошибка при обновлении ${field.label.toLowerCase()}: ` + error.message, 'error');
-        }
-    };
-    
-    // Cancel function
-    const cancelEdit = () => {
-        spanElement.textContent = currentValue;
-        parentDiv.replaceChild(spanElement, input);
-        parentDiv.removeChild(saveBtn);
-        parentDiv.removeChild(cancelBtn);
-    };
-    
-    // Event listeners
-    saveBtn.onclick = saveField;
-    cancelBtn.onclick = cancelEdit;
-    
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            saveField();
-        } else if (e.key === 'Escape') {
-            cancelEdit();
-        }
-    });
+        // Close only the field edit modal
+        document.getElementById('editFieldModal').style.display = 'none';
+        showMessage('Успешно обновлено!', 'success');
+        
+    } catch (error) {
+        console.error('Error updating field:', error);
+        showMessage(`Ошибка при обновлении: ${error.message}`, 'error');
+    }
 }
 
 function showMessage(message, type) {
@@ -283,7 +249,9 @@ function uploadProfilePhoto(event) {
 // Edit appointment
 function editAppointment(appointmentId) {
     const modal = document.getElementById('editAppointmentModal');
-    const form = document.getElementById('editAppointmentForm');
+    
+    // Close profile edit modal if open
+    document.getElementById('editFieldModal').style.display = 'none';
     
     // Load appointment data
     fetch(`${API_URL}/appointments/${appointmentId}`)
@@ -332,7 +300,7 @@ async function saveAppointmentChanges(event) {
         }
 
         showMessage('Запись успешно обновлена!', 'success');
-        closeEditModal();
+        closeAppointmentModal();
         loadUserAppointments(); // Reload appointments
         
     } catch (error) {

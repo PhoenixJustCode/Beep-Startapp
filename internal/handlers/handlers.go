@@ -420,9 +420,9 @@ func (h *Handlers) Register(c *gin.Context) {
 
 func (h *Handlers) UpdateUserProfile(c *gin.Context) {
 	type Request struct {
-		Name  string `json:"name" binding:"required"`
-		Email string `json:"email" binding:"required"`
-		Phone string `json:"phone"`
+		Name  *string `json:"name"`
+		Email *string `json:"email"`
+		Phone *string `json:"phone"`
 	}
 
 	var req Request
@@ -434,8 +434,30 @@ func (h *Handlers) UpdateUserProfile(c *gin.Context) {
 	// TODO: Get user ID from JWT token (for now using 1 as default)
 	userID := 1
 
+	// Get current user data
+	currentUser, err := h.repo.GetUserByID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Update only provided fields
+	name := currentUser.Name
+	email := currentUser.Email
+	phone := currentUser.Phone
+
+	if req.Name != nil {
+		name = *req.Name
+	}
+	if req.Email != nil {
+		email = *req.Email
+	}
+	if req.Phone != nil {
+		phone = *req.Phone
+	}
+
 	// Update user profile
-	if err := h.repo.UpdateUserProfile(userID, req.Name, req.Email, req.Phone); err != nil {
+	if err := h.repo.UpdateUserProfile(userID, name, email, phone); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

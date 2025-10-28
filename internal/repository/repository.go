@@ -473,3 +473,13 @@ func (r *Repository) CreateUser(name, email, phone, passwordHash string) (*model
 	}
 	return &user, nil
 }
+
+func (r *Repository) GetUserByID(id int) (*models.User, error) {
+	var user models.User
+	err := r.db.QueryRow("SELECT id, name, email, phone, password_hash, created_at, updated_at FROM users WHERE id = $1", id).
+		Scan(&user.ID, &user.Name, &user.Email, &user.Phone, &user.PasswordHash, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}

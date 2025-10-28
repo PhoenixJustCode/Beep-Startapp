@@ -702,6 +702,24 @@ button:active {
     box-shadow: 0 8px 25px rgba(0,0,0,0.15);
 }
 
+/* Home Button */
+.home-button {
+    padding: 8px 16px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.home-button:hover {
+    background: var(--secondary);
+    transform: translateY(-1px);
+}
+
 .appointment-header {
     display: flex;
     justify-content: space-between;

@@ -337,6 +337,78 @@ function closeEditModal() {
 }
 
 // Save appointment changes
+async function cancelAppointment(appointmentId) {
+    if (!confirm('Вы точно хотите отменить эту запись?')) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/appointments/${appointmentId}/cancel`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            let errorMessage = 'Failed to cancel appointment';
+            try {
+                const error = await response.json();
+                errorMessage = error.error || errorMessage;
+            } catch (e) {
+                const text = await response.text();
+                console.error('Cancel appointment error (non-JSON):', text);
+                errorMessage = text || errorMessage;
+            }
+            throw new Error(errorMessage);
+        }
+        
+        showMessage('Запись успешно отменена!', 'success');
+        loadUserAppointments(); // Reload appointments
+        
+    } catch (error) {
+        console.error('Error cancelling appointment:', error);
+        showMessage(`Ошибка отмены записи: ${error.message}`, 'error');
+    }
+}
+
+async function deleteAppointment(appointmentId) {
+    if (!confirm('Вы точно хотите удалить эту запись?')) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/appointments/${appointmentId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            let errorMessage = 'Failed to delete appointment';
+            try {
+                const error = await response.json();
+                errorMessage = error.error || errorMessage;
+            } catch (e) {
+                const text = await response.text();
+                console.error('Delete appointment error (non-JSON):', text);
+                errorMessage = text || errorMessage;
+            }
+            throw new Error(errorMessage);
+        }
+        
+        showMessage('Запись успешно удалена!', 'success');
+        loadUserAppointments(); // Reload appointments
+        
+    } catch (error) {
+        console.error('Error deleting appointment:', error);
+        showMessage(`Ошибка удаления записи: ${error.message}`, 'error');
+    }
+}
+
 async function saveAppointmentChanges(event) {
     event.preventDefault();
     
@@ -430,6 +502,10 @@ async function loadUserAppointments() {
                 </div>
                 <div class="appointment-actions" style="margin-top: 15px; display: flex; gap: 10px;">
                     <button onclick="editAppointment(${apt.id})" style="flex: 1; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">✏️ Редактировать</button>
+                    ${apt.status === 'cancelled' ? 
+                        `<button onclick="deleteAppointment(${apt.id})" style="flex: 1; padding: 10px; background: #e74c3c; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">🗑️ Удалить</button>` :
+                        `<button onclick="cancelAppointment(${apt.id})" style="flex: 1; padding: 10px; background: #f39c12; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">❌ Отменить</button>`
+                    }
                 </div>
             `;
             container.appendChild(div);
@@ -602,7 +678,10 @@ async function loadMasterWorks() {
             workCard.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
                     <h4 style="margin: 0; color: var(--primary); flex: 1;">${work.title}</h4>
-                    <button onclick="deleteWork(${work.id})" style="background: #e74c3c; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;" title="Удалить работу">×</button>
+                    <div style="display: flex; gap: 5px;">
+                        <button onclick="editWork(${work.id})" style="background: var(--primary); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;" title="Редактировать работу">✏️</button>
+                        <button onclick="deleteWork(${work.id})" style="background: #e74c3c; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;" title="Удалить работу">×</button>
+                    </div>
                 </div>
                 <p style="margin: 5px 0; color: #666;"><strong>Дата:</strong> ${new Date(work.work_date).toLocaleDateString('ru-RU')}</p>
                 <p style="margin: 5px 0; color: #666;"><strong>Заказчик:</strong> ${work.customer_name}</p>
@@ -715,18 +794,89 @@ function showAddWorkModal() {
 function closeAddWorkModal() {
     document.getElementById('addWorkModal').style.display = 'none';
     document.getElementById('addWorkForm').reset();
+    
+    // Reset form title and button
+    const modalTitle = document.querySelector('#addWorkModal h2');
+    modalTitle.textContent = 'Добавить работу';
+    
+    const submitButton = document.querySelector('#addWorkForm button[type="submit"]');
+    submitButton.textContent = 'Сохранить';
+    
+    // Clear work ID
+    document.getElementById('workId').value = '';
 }
 
 // Save work
 async function saveWork(event) {
     event.preventDefault();
     
+    // Handle photo uploads first
+    const photoFiles = document.getElementById('workPhotos').files;
+    const photoUrls = [];
+    
+    // Upload photos if any
+    if (photoFiles.length > 0) {
+        try {
+            const token = localStorage.getItem('token');
+            
+            for (let i = 0; i < photoFiles.length; i++) {
+                const file = photoFiles[i];
+                
+                if (!file.type.startsWith('image/')) {
+                    showMessage('Пожалуйста, выберите только изображения', 'error');
+                    return;
+                }
+                
+                if (file.size > 5 * 1024 * 1024) {
+                    showMessage('Файл слишком большой (максимум 5MB)', 'error');
+                    return;
+                }
+                
+                const formData = new FormData();
+                formData.append('photo', file);
+                
+                console.log('Uploading photo:', file.name);
+                
+                const response = await fetch(`${API_URL}/master/work-photo`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+                
+                console.log('Photo upload response status:', response.status);
+                
+                if (!response.ok) {
+                    let errorMessage = 'Failed to upload photo';
+                    try {
+                        const error = await response.json();
+                        errorMessage = error.error || errorMessage;
+                    } catch (e) {
+                        const text = await response.text();
+                        console.error('Photo upload error (non-JSON):', text);
+                        errorMessage = text || errorMessage;
+                    }
+                    throw new Error(errorMessage);
+                }
+                
+                const result = await response.json();
+                console.log('Photo upload result:', result);
+                photoUrls.push(result.photo_url);
+            }
+        } catch (error) {
+            console.error('Error uploading photos:', error);
+            showMessage(`Ошибка загрузки фото: ${error.message}`, 'error');
+            return;
+        }
+    }
+    
     const formData = {
         title: document.getElementById('workTitle').value,
         work_date: document.getElementById('workDate').value,
         customer_name: document.getElementById('workCustomer').value,
         amount: parseFloat(document.getElementById('workAmount').value),
-        photo_urls: [] // Simplified for now
+        photo_urls: photoUrls
     };
     
     try {
@@ -738,18 +888,31 @@ async function saveWork(event) {
             headers['Authorization'] = 'Bearer ' + token;
         }
         
-        const response = await fetch(`${API_URL}/master/works`, {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify(formData)
-        });
+        const workId = document.getElementById('workId').value;
+        let response;
+        
+        if (workId) {
+            // Update existing work
+            response = await fetch(`${API_URL}/master/works/${workId}`, {
+                method: 'PUT',
+                headers: headers,
+                body: JSON.stringify(formData)
+            });
+        } else {
+            // Create new work
+            response = await fetch(`${API_URL}/master/works`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(formData)
+            });
+        }
         
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || 'Failed to save work');
         }
         
-        showMessage('Работа успешно добавлена!', 'success');
+        showMessage(workId ? 'Работа успешно обновлена!' : 'Работа успешно добавлена!', 'success');
         closeAddWorkModal();
         loadMasterWorks(); // Reload works
         
@@ -1122,10 +1285,24 @@ async function saveMasterProfile(event) {
             body: JSON.stringify(formData)
         });
         
+        console.log('Master profile update response status:', response.status);
+        
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to update master profile');
+            let errorMessage = 'Failed to update master profile';
+            try {
+                const error = await response.json();
+                console.error('Master profile update error:', error);
+                errorMessage = error.error || errorMessage;
+            } catch (e) {
+                const text = await response.text();
+                console.error('Master profile update error (non-JSON):', text);
+                errorMessage = text || errorMessage;
+            }
+            throw new Error(errorMessage);
         }
+        
+        const result = await response.json();
+        console.log('Master profile update result:', result);
         
         showMessage('Профиль мастера успешно обновлен!', 'success');
         closeMasterEditModal();

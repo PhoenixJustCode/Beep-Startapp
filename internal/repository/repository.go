@@ -421,6 +421,11 @@ func (r *Repository) CancelAppointment(appointmentID int) error {
 	return err
 }
 
+func (r *Repository) DeleteAppointment(appointmentID int) error {
+	_, err := r.db.Exec("DELETE FROM appointments WHERE id = $1", appointmentID)
+	return err
+}
+
 func (r *Repository) GetAppointmentByID(appointmentID int) (*models.Appointment, error) {
 	var appt models.Appointment
 	err := r.db.QueryRow("SELECT id, user_id, master_id, service_id, date, time, status, comment, created_at, updated_at FROM appointments WHERE id = $1", appointmentID).

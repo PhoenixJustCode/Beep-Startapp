@@ -4,6 +4,7 @@ import (
 	"beep-backend/internal/repository"
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -347,6 +348,43 @@ func (h *Handlers) UpdateAppointment(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Appointment updated successfully"})
+}
+
+func (h *Handlers) DeleteAppointment(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// Verify that the appointment belongs to the current user
+	appointment, err := h.repo.GetAppointmentByID(id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Appointment not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if appointment.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You don't have permission to delete this appointment"})
+		return
+	}
+
+	if err := h.repo.DeleteAppointment(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Appointment deleted successfully"})
 }
 
 func (h *Handlers) CancelAppointment(c *gin.Context) {
@@ -697,12 +735,14 @@ func (h *Handlers) UpdateMasterProfile(c *gin.Context) {
 
 	var req Request
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("Error binding JSON: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	userID, err := h.getUserIDFromContext(c)
 	if err != nil {
+		log.Printf("Unauthorized access to master profile update")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
@@ -710,9 +750,12 @@ func (h *Handlers) UpdateMasterProfile(c *gin.Context) {
 	// Get current master data
 	currentMaster, err := h.repo.GetMasterByUserID(userID)
 	if err != nil {
+		log.Printf("Master not found for user %d: %v", userID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Master not found"})
 		return
 	}
+
+	log.Printf("Updating master profile for user %d, master %d", userID, currentMaster.ID)
 
 	// Update only provided fields
 	name := currentMaster.Name
@@ -723,26 +766,33 @@ func (h *Handlers) UpdateMasterProfile(c *gin.Context) {
 
 	if req.Name != nil {
 		name = *req.Name
+		log.Printf("Updating name to: %s", name)
 	}
 	if req.Email != nil {
 		email = *req.Email
+		log.Printf("Updating email to: %s", email)
 	}
 	if req.Phone != nil {
 		phone = *req.Phone
+		log.Printf("Updating phone to: %s", phone)
 	}
 	if req.Specialization != nil {
 		specialization = *req.Specialization
+		log.Printf("Updating specialization to: %s", specialization)
 	}
 	if req.Address != nil {
 		address = *req.Address
+		log.Printf("Updating address to: %s", address)
 	}
 
 	// Update master profile
 	if err := h.repo.UpdateMaster(currentMaster.ID, name, email, phone, specialization, address); err != nil {
+		log.Printf("Error updating master profile: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
+	log.Printf("Master profile updated successfully")
 	c.JSON(http.StatusOK, gin.H{"message": "Master profile updated successfully"})
 }
 

@@ -102,7 +102,8 @@ func SetupRouter(h *handlers.Handlers) *gin.Engine {
 			appointments.GET("", h.GetUserAppointments)
 			appointments.GET("/:id", h.GetAppointmentByID)
 			appointments.PUT("/:id", h.UpdateAppointment)
-			appointments.DELETE("/:id", h.CancelAppointment)
+			appointments.PUT("/:id/cancel", h.CancelAppointment)
+			appointments.DELETE("/:id", h.DeleteAppointment)
 		}
 	}
 

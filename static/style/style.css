@@ -34,6 +34,28 @@ header {
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     border-radius: 15px;
     margin-bottom: 30px;
+    display: flex;
+    justify-content: space-between; /* делает кнопку справа */
+    align-items: center;
+}
+
+header .home-button {
+    background: var(--primary);
+    color: white;
+    padding: 8px 14px;
+    font-size: 13px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    width: auto !important;       /* 🔥 отменяет width: 100% */
+    min-width: unset !important;  /* 🔥 отменяет min-width */
+    max-width: fit-content !important;
+    display: inline-block !important;
+    transition: background 0.3s ease;
+}
+
+header .home-button:hover {
+    background: #5a5df0;
 }
 
 h1 {

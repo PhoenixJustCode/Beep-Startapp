@@ -45,12 +45,23 @@ async function loadUserProfile() {
     document.getElementById('userPhone').textContent = userObj.phone || '-';
     document.getElementById('userCreated').textContent = userObj.created_at ? new Date(userObj.created_at).toLocaleDateString('ru-RU') : '-';
     
-    // Set profile initial
-    const firstLetter = userObj.name ? userObj.name.charAt(0).toUpperCase() : 'A';
-    document.getElementById('profileInitial').textContent = firstLetter;
-    
-    // Store current user data for editing
-    window.currentUser = userObj;
+        // Set profile initial
+        const firstLetter = userObj.name ? userObj.name.charAt(0).toUpperCase() : 'A';
+        document.getElementById('profileInitial').textContent = firstLetter;
+        
+        // Set profile photo if exists
+        if (userObj.photo_url) {
+            document.getElementById('profilePicture').style.background = `url(${userObj.photo_url}) center/cover`;
+            document.getElementById('profilePicture').style.color = 'transparent';
+            document.getElementById('profileInitial').style.display = 'none';
+        } else {
+            document.getElementById('profilePicture').style.background = 'linear-gradient(135deg, var(--primary), var(--secondary))';
+            document.getElementById('profilePicture').style.color = 'white';
+            document.getElementById('profileInitial').style.display = 'flex';
+        }
+        
+        // Store current user data for editing
+        window.currentUser = userObj;
 }
 
 async function saveProfile(event) {
@@ -227,7 +238,7 @@ function showMessage(message, type) {
 }
 
 // Profile photo upload
-function uploadProfilePhoto(event) {
+async function uploadProfilePhoto(event) {
     const file = event.target.files[0];
     if (!file) return;
     
@@ -236,14 +247,57 @@ function uploadProfilePhoto(event) {
         return;
     }
     
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        document.getElementById('profilePicture').style.background = `url(${e.target.result}) center/cover`;
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        showMessage('Файл слишком большой (максимум 5MB)', 'error');
+        return;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('photo', file);
+        
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/user/photo`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            body: formData
+        });
+        
+        // Check if response is ok
+        if (!response.ok) {
+            let errorMessage = 'Failed to upload photo';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorMessage;
+            } catch (e) {
+                // If response is not JSON, get text
+                const text = await response.text();
+                errorMessage = text || errorMessage;
+            }
+            throw new Error(errorMessage);
+        }
+        
+        const result = await response.json();
+        
+        // Update profile picture display
+        document.getElementById('profilePicture').style.background = `url(${result.photo_url}) center/cover`;
         document.getElementById('profilePicture').style.color = 'transparent';
         document.getElementById('profileInitial').style.display = 'none';
-        showMessage('Фото загружено!', 'success');
-    };
-    reader.readAsDataURL(file);
+        
+        // Update localStorage
+        const user = JSON.parse(localStorage.getItem('user'));
+        user.photo_url = result.photo_url;
+        localStorage.setItem('user', JSON.stringify(user));
+        
+        showMessage('Фото успешно загружено!', 'success');
+        
+    } catch (error) {
+        console.error('Error uploading photo:', error);
+        showMessage(`Ошибка загрузки фото: ${error.message}`, 'error');
+    }
 }
 
 // Edit appointment

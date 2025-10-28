@@ -8,6 +8,7 @@ type User struct {
 	Name         string    `json:"name" db:"name"`
 	Email        string    `json:"email" db:"email"`
 	Phone        string    `json:"phone" db:"phone"`
+	PhotoURL     string    `json:"photo_url" db:"photo_url"`
 	PasswordHash string    `json:"-" db:"password_hash"`
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
@@ -121,18 +122,18 @@ type Review struct {
 
 // CalculatePriceResponse represents a price calculation response
 type CalculatePriceResponse struct {
-	ServiceID     int     `json:"service_id"`
-	ServiceName   string  `json:"service_name"`
-	CarBrand      string  `json:"car_brand"`
-	CarModel      string  `json:"car_model"`
-	CarYear       int     `json:"car_year"`
-	CarType       string  `json:"car_type"`
-	CarAge        int     `json:"car_age"`
-	BasePrice     float64 `json:"base_price"`
-	FinalPrice    float64 `json:"final_price"`
-	MinPrice      float64 `json:"min_price"`
-	MaxPrice      float64 `json:"max_price"`
-	PriceDetails  []PriceDetail `json:"price_details"`
+	ServiceID    int           `json:"service_id"`
+	ServiceName  string        `json:"service_name"`
+	CarBrand     string        `json:"car_brand"`
+	CarModel     string        `json:"car_model"`
+	CarYear      int           `json:"car_year"`
+	CarType      string        `json:"car_type"`
+	CarAge       int           `json:"car_age"`
+	BasePrice    float64       `json:"base_price"`
+	FinalPrice   float64       `json:"final_price"`
+	MinPrice     float64       `json:"min_price"`
+	MaxPrice     float64       `json:"max_price"`
+	PriceDetails []PriceDetail `json:"price_details"`
 }
 
 // PriceDetail represents a price calculation step

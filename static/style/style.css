@@ -42,10 +42,10 @@ header {
 header .home-button {
     background: var(--primary);
     color: white;
-    padding: 8px 14px;
-    font-size: 13px;
+    padding: 10px 16px;
+    font-size: 20px;
     border: none;
-    border-radius: 8px;
+    border-radius: 10px;
     cursor: pointer;
     width: auto !important;       /* 🔥 отменяет width: 100% */
     min-width: unset !important;  /* 🔥 отменяет min-width */

@@ -31,6 +31,7 @@ func SetupRouter(h *handlers.Handlers) *gin.Engine {
 		user := v1.Group("/user")
 		{
 			user.PUT("/profile", h.UpdateUserProfile)
+			user.POST("/photo", h.UploadProfilePhoto)
 		}
 
 		// Categories

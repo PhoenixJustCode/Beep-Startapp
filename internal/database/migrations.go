@@ -23,6 +23,7 @@ func RunMigrations(db *sql.DB) error {
 				name VARCHAR(100) NOT NULL,
 				email VARCHAR(255) UNIQUE NOT NULL,
 				phone VARCHAR(20),
+				photo_url VARCHAR(255),
 				password_hash VARCHAR(255) NOT NULL,
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 				updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -156,6 +157,30 @@ func RunMigrations(db *sql.DB) error {
 			return fmt.Errorf("migration failed: %s", migration.name)
 		}
 		log.Printf("Migration %s completed", migration.name)
+	}
+
+	// Add photo_url column if it doesn't exist
+	addPhotoUrlMigration := struct {
+		name string
+		sql  string
+	}{
+		name: "add_photo_url_column",
+		sql: `
+		DO $$ 
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1 FROM information_schema.columns 
+				WHERE table_name = 'users' AND column_name = 'photo_url'
+			) THEN
+				ALTER TABLE users ADD COLUMN photo_url VARCHAR(255);
+			END IF;
+		END $$;`,
+	}
+
+	if _, err := db.ExecContext(ctx, addPhotoUrlMigration.sql); err != nil {
+		log.Printf("Warning: Failed to add photo_url column: %v", err)
+	} else {
+		log.Printf("Migration %s completed", addPhotoUrlMigration.name)
 	}
 
 	// Insert sample data

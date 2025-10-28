@@ -476,10 +476,20 @@ func (r *Repository) CreateUser(name, email, phone, passwordHash string) (*model
 
 func (r *Repository) GetUserByID(id int) (*models.User, error) {
 	var user models.User
-	err := r.db.QueryRow("SELECT id, name, email, phone, password_hash, created_at, updated_at FROM users WHERE id = $1", id).
-		Scan(&user.ID, &user.Name, &user.Email, &user.Phone, &user.PasswordHash, &user.CreatedAt, &user.UpdatedAt)
+	var photoURL sql.NullString
+	err := r.db.QueryRow("SELECT id, name, email, phone, photo_url, password_hash, created_at, updated_at FROM users WHERE id = $1", id).
+		Scan(&user.ID, &user.Name, &user.Email, &user.Phone, &photoURL, &user.PasswordHash, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
+	if photoURL.Valid {
+		user.PhotoURL = photoURL.String
+	}
 	return &user, nil
+}
+
+// Update user photo URL
+func (r *Repository) UpdateUserPhoto(userID int, photoURL string) error {
+	_, err := r.db.Exec("UPDATE users SET photo_url = $1, updated_at = NOW() WHERE id = $2", photoURL, userID)
+	return err
 }

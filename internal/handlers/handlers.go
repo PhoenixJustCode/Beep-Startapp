@@ -3,8 +3,11 @@ package handlers
 import (
 	"beep-backend/internal/repository"
 	"database/sql"
+	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -463,4 +466,52 @@ func (h *Handlers) UpdateUserProfile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
+}
+
+// Upload profile photo
+func (h *Handlers) UploadProfilePhoto(c *gin.Context) {
+	// TODO: Get user ID from JWT token (for now using 1 as default)
+	userID := 1
+
+	// Get the uploaded file
+	file, err := c.FormFile("photo")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No photo uploaded"})
+		return
+	}
+
+	// Validate file type
+	if !strings.HasPrefix(file.Header.Get("Content-Type"), "image/") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File must be an image"})
+		return
+	}
+
+	// Validate file size (max 5MB)
+	if file.Size > 5*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File too large (max 5MB)"})
+		return
+	}
+
+	// Generate unique filename
+	ext := filepath.Ext(file.Filename)
+	filename := fmt.Sprintf("user_%d_%d%s", userID, time.Now().Unix(), ext)
+	filepath := filepath.Join("static", "uploads", filename)
+
+	// Save file
+	if err := c.SaveUploadedFile(file, filepath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+		return
+	}
+
+	// Update user photo URL in database
+	photoURL := "/static/uploads/" + filename
+	if err := h.repo.UpdateUserPhoto(userID, photoURL); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update photo URL"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":   "Photo uploaded successfully",
+		"photo_url": photoURL,
+	})
 }

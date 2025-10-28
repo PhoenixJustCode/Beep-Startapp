@@ -65,6 +65,7 @@ type PricingRule struct {
 // Master represents a service master
 type Master struct {
 	ID             int       `json:"id" db:"id"`
+	UserID         int       `json:"user_id" db:"user_id"`
 	Name           string    `json:"name" db:"name"`
 	Email          string    `json:"email" db:"email"`
 	Phone          string    `json:"phone" db:"phone"`
@@ -142,4 +143,33 @@ type PriceDetail struct {
 	Amount      float64 `json:"amount"`
 	Multiplier  float64 `json:"multiplier,omitempty"`
 	IsAddition  bool    `json:"is_addition"`
+}
+
+// MasterWork represents a master's completed work
+type MasterWork struct {
+	ID           int       `json:"id" db:"id"`
+	MasterID     int       `json:"master_id" db:"master_id"`
+	Title        string    `json:"title" db:"title"`
+	WorkDate     time.Time `json:"work_date" db:"work_date"`
+	CustomerName string    `json:"customer_name" db:"customer_name"`
+	Amount       float64   `json:"amount" db:"amount"`
+	PhotoURLs    []string  `json:"photo_urls" db:"photo_urls"`
+	CreatedAt    time.Time `json:"created_at" db:"created_at"`
+}
+
+// MasterPaymentInfo represents payment information for a master
+type MasterPaymentInfo struct {
+	ID          int       `json:"id" db:"id"`
+	MasterID    int       `json:"master_id" db:"master_id"`
+	KaspiCard   string    `json:"kaspi_card" db:"kaspi_card"`
+	FreedomCard string    `json:"freedom_card" db:"freedom_card"`
+	HalykCard   string    `json:"halyk_card" db:"halyk_card"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// ReviewWithUser represents a review with user information
+type ReviewWithUser struct {
+	Review
+	UserName string `json:"user_name" db:"user_name"`
 }

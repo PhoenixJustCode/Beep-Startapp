@@ -21,6 +21,30 @@ func New(repo *repository.Repository) *Handlers {
 	return &Handlers{repo: repo}
 }
 
+// getUserIDFromContext extracts user ID from JWT token in Authorization header
+func (h *Handlers) getUserIDFromContext(c *gin.Context) (int, error) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		return 0, fmt.Errorf("no authorization header")
+	}
+
+	// Extract email from mock token (format: "Bearer mock-jwt-token-email@example.com")
+	parts := strings.Split(authHeader, "mock-jwt-token-")
+	if len(parts) != 2 {
+		return 0, fmt.Errorf("invalid token format")
+	}
+
+	email := parts[1]
+
+	// Get user by email
+	user, err := h.repo.GetUserByEmail(email)
+	if err != nil {
+		return 0, fmt.Errorf("user not found: %v", err)
+	}
+
+	return user.ID, nil
+}
+
 // Categories
 func (h *Handlers) GetCategories(c *gin.Context) {
 	categories, err := h.repo.GetAllCategories()
@@ -185,21 +209,6 @@ func (h *Handlers) GetMasterByID(c *gin.Context) {
 	c.JSON(http.StatusOK, master)
 }
 
-func (h *Handlers) GetMasterReviews(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
-		return
-	}
-
-	reviews, err := h.repo.GetMasterReviews(id)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, reviews)
-}
-
 func (h *Handlers) GetMasterSchedule(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -266,8 +275,11 @@ func (h *Handlers) CreateAppointment(c *gin.Context) {
 		return
 	}
 
-	// TODO: Get user ID from JWT token (for now using 1 as default)
-	userID := 1
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
 
 	appointment, err := h.repo.CreateAppointment(userID, req.MasterID, req.ServiceID, date, req.Time, req.Comment)
 	if err != nil {
@@ -279,8 +291,11 @@ func (h *Handlers) CreateAppointment(c *gin.Context) {
 }
 
 func (h *Handlers) GetUserAppointments(c *gin.Context) {
-	// TODO: Get user ID from JWT token (for now using 1 as default)
-	userID := 1
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: " + err.Error()})
+		return
+	}
 
 	appointments, err := h.repo.GetUserAppointments(userID)
 	if err != nil {
@@ -421,6 +436,23 @@ func (h *Handlers) Register(c *gin.Context) {
 	})
 }
 
+// GetUserProfile gets user profile
+func (h *Handlers) GetUserProfile(c *gin.Context) {
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	user, err := h.repo.GetUserByID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
+
 func (h *Handlers) UpdateUserProfile(c *gin.Context) {
 	type Request struct {
 		Name  *string `json:"name"`
@@ -434,8 +466,11 @@ func (h *Handlers) UpdateUserProfile(c *gin.Context) {
 		return
 	}
 
-	// TODO: Get user ID from JWT token (for now using 1 as default)
-	userID := 1
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
 
 	// Get current user data
 	currentUser, err := h.repo.GetUserByID(userID)
@@ -470,8 +505,11 @@ func (h *Handlers) UpdateUserProfile(c *gin.Context) {
 
 // Upload profile photo
 func (h *Handlers) UploadProfilePhoto(c *gin.Context) {
-	// TODO: Get user ID from JWT token (for now using 1 as default)
-	userID := 1
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
 
 	// Get the uploaded file
 	file, err := c.FormFile("photo")
@@ -514,4 +552,410 @@ func (h *Handlers) UploadProfilePhoto(c *gin.Context) {
 		"message":   "Photo uploaded successfully",
 		"photo_url": photoURL,
 	})
+}
+
+// Upload master photo
+func (h *Handlers) UploadMasterPhoto(c *gin.Context) {
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// Get master profile
+	master, err := h.repo.GetMasterByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Master profile not found"})
+		return
+	}
+
+	// Get the uploaded file
+	file, err := c.FormFile("photo")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No photo uploaded"})
+		return
+	}
+
+	// Validate file type
+	if !strings.HasPrefix(file.Header.Get("Content-Type"), "image/") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File must be an image"})
+		return
+	}
+
+	// Validate file size (max 5MB)
+	if file.Size > 5*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File too large (max 5MB)"})
+		return
+	}
+
+	// Generate unique filename
+	ext := filepath.Ext(file.Filename)
+	filename := fmt.Sprintf("master_%d_%d%s", master.ID, time.Now().Unix(), ext)
+	filepath := filepath.Join("static", "uploads", filename)
+
+	// Save file
+	if err := c.SaveUploadedFile(file, filepath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+		return
+	}
+
+	// Update master photo URL in database
+	photoURL := "/static/uploads/" + filename
+	if err := h.repo.UpdateMasterPhoto(master.ID, photoURL); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update photo URL"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":   "Master photo uploaded successfully",
+		"photo_url": photoURL,
+	})
+}
+
+// Master Profile Handlers
+
+// GetMasterProfile gets master profile by user ID
+func (h *Handlers) GetMasterProfile(c *gin.Context) {
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	master, err := h.repo.GetMasterByUserID(userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Master profile not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, master)
+}
+
+// CreateMasterProfile creates a new master profile
+func (h *Handlers) CreateMasterProfile(c *gin.Context) {
+	type Request struct {
+		Name           string `json:"name" binding:"required"`
+		Email          string `json:"email" binding:"required"`
+		Phone          string `json:"phone" binding:"required"`
+		Specialization string `json:"specialization"`
+		Address        string `json:"address"`
+	}
+
+	var req Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// Generate unique email for master profile to avoid conflicts
+	masterEmail := fmt.Sprintf("master_%d_%s", userID, req.Email)
+
+	master, err := h.repo.CreateMaster(userID, req.Name, masterEmail, req.Phone, req.Specialization, req.Address)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, master)
+}
+
+// DeleteMasterProfile deletes master profile
+func (h *Handlers) DeleteMasterProfile(c *gin.Context) {
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if err := h.repo.DeleteMasterProfile(userID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Master profile deleted successfully"})
+}
+
+// UpdateMasterProfile updates master profile
+func (h *Handlers) UpdateMasterProfile(c *gin.Context) {
+	type Request struct {
+		Name           *string `json:"name"`
+		Email          *string `json:"email"`
+		Phone          *string `json:"phone"`
+		Specialization *string `json:"specialization"`
+		Address        *string `json:"address"`
+	}
+
+	var req Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// Get current master data
+	currentMaster, err := h.repo.GetMasterByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Master not found"})
+		return
+	}
+
+	// Update only provided fields
+	name := currentMaster.Name
+	email := currentMaster.Email
+	phone := currentMaster.Phone
+	specialization := currentMaster.Specialization
+	address := currentMaster.Address
+
+	if req.Name != nil {
+		name = *req.Name
+	}
+	if req.Email != nil {
+		email = *req.Email
+	}
+	if req.Phone != nil {
+		phone = *req.Phone
+	}
+	if req.Specialization != nil {
+		specialization = *req.Specialization
+	}
+	if req.Address != nil {
+		address = *req.Address
+	}
+
+	// Update master profile
+	if err := h.repo.UpdateMaster(currentMaster.ID, name, email, phone, specialization, address); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Master profile updated successfully"})
+}
+
+// Master Works Handlers
+
+// GetMasterWorks gets all works for a master
+func (h *Handlers) GetMasterWorks(c *gin.Context) {
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	master, err := h.repo.GetMasterByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Master not found"})
+		return
+	}
+
+	works, err := h.repo.GetMasterWorks(master.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, works)
+}
+
+// CreateMasterWork creates a new work entry
+func (h *Handlers) CreateMasterWork(c *gin.Context) {
+	type Request struct {
+		Title        string   `json:"title" binding:"required"`
+		WorkDate     string   `json:"work_date" binding:"required"`
+		CustomerName string   `json:"customer_name" binding:"required"`
+		Amount       float64  `json:"amount" binding:"required"`
+		PhotoURLs    []string `json:"photo_urls"`
+	}
+
+	var req Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	master, err := h.repo.GetMasterByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Master not found"})
+		return
+	}
+
+	workDate, err := time.Parse("2006-01-02", req.WorkDate)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format"})
+		return
+	}
+
+	work, err := h.repo.CreateMasterWork(master.ID, req.Title, workDate, req.CustomerName, req.Amount, req.PhotoURLs)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, work)
+}
+
+// DeleteMasterWork deletes a work entry
+func (h *Handlers) DeleteMasterWork(c *gin.Context) {
+	workID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid work ID"})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// Verify that the work belongs to the current master
+	master, err := h.repo.GetMasterByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Master not found"})
+		return
+	}
+
+	if err := h.repo.DeleteMasterWork(workID, master.ID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Work deleted successfully"})
+}
+
+// Master Payment Info Handlers
+
+// GetMasterPaymentInfo gets payment info for a master
+func (h *Handlers) GetMasterPaymentInfo(c *gin.Context) {
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	master, err := h.repo.GetMasterByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Master not found"})
+		return
+	}
+
+	info, err := h.repo.GetMasterPaymentInfo(master.ID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Payment info not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, info)
+}
+
+// UpdateMasterPaymentInfo updates payment info for a master
+func (h *Handlers) UpdateMasterPaymentInfo(c *gin.Context) {
+	type Request struct {
+		KaspiCard   string `json:"kaspi_card"`
+		FreedomCard string `json:"freedom_card"`
+		HalykCard   string `json:"halyk_card"`
+	}
+
+	var req Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	master, err := h.repo.GetMasterByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Master not found"})
+		return
+	}
+
+	if err := h.repo.UpdateMasterPaymentInfo(master.ID, req.KaspiCard, req.FreedomCard, req.HalykCard); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Payment info updated successfully"})
+}
+
+// Reviews Handlers
+
+// GetMasterReviews gets all reviews for a master
+func (h *Handlers) GetMasterReviews(c *gin.Context) {
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	master, err := h.repo.GetMasterByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Master not found"})
+		return
+	}
+
+	reviews, err := h.repo.GetMasterReviews(master.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, reviews)
+}
+
+// CreateReview creates a new review
+func (h *Handlers) CreateReview(c *gin.Context) {
+	type Request struct {
+		MasterID int    `json:"master_id" binding:"required"`
+		Rating   int    `json:"rating" binding:"required"`
+		Comment  string `json:"comment"`
+	}
+
+	var req Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	review, err := h.repo.CreateReview(req.MasterID, userID, req.Rating, req.Comment)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, review)
 }

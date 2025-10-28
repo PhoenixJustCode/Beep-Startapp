@@ -1178,6 +1178,20 @@ button:active {
     border-radius: 10px;
 }
 
+/* Add spacing between master profile sections */
+#existingMasterProfile .card {
+    margin-bottom: 30px;
+}
+
+#existingMasterProfile .card:last-child {
+    margin-bottom: 0;
+}
+
+/* Add spacing between master profile tabs */
+.tab-content {
+    margin-top: 20px;
+}
+
 .results-gallery {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));

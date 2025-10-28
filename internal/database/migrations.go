@@ -95,6 +95,7 @@ func RunMigrations(db *sql.DB) error {
 			sql: `
 			CREATE TABLE IF NOT EXISTS masters (
 				id SERIAL PRIMARY KEY,
+				user_id INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,
 				name VARCHAR(100) NOT NULL,
 				email VARCHAR(255) UNIQUE NOT NULL,
 				phone VARCHAR(20) NOT NULL,
@@ -149,6 +150,33 @@ func RunMigrations(db *sql.DB) error {
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 			);`,
 		},
+		{
+			name: "create_master_works_table",
+			sql: `
+			CREATE TABLE IF NOT EXISTS master_works (
+				id SERIAL PRIMARY KEY,
+				master_id INTEGER REFERENCES masters(id) ON DELETE CASCADE,
+				title VARCHAR(255) NOT NULL,
+				work_date DATE NOT NULL,
+				customer_name VARCHAR(255) NOT NULL,
+				amount DECIMAL(10, 2),
+				photo_urls TEXT,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			);`,
+		},
+		{
+			name: "create_master_payment_info_table",
+			sql: `
+			CREATE TABLE IF NOT EXISTS master_payment_info (
+				id SERIAL PRIMARY KEY,
+				master_id INTEGER REFERENCES masters(id) ON DELETE CASCADE UNIQUE,
+				kaspi_card VARCHAR(20),
+				freedom_card VARCHAR(20),
+				halyk_card VARCHAR(20),
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			);`,
+		},
 	}
 
 	for _, migration := range migrations {
@@ -181,6 +209,54 @@ func RunMigrations(db *sql.DB) error {
 		log.Printf("Warning: Failed to add photo_url column: %v", err)
 	} else {
 		log.Printf("Migration %s completed", addPhotoUrlMigration.name)
+	}
+
+	// Add user_id column to masters table if it doesn't exist
+	addUserIDMigration := struct {
+		name string
+		sql  string
+	}{
+		name: "add_user_id_to_masters",
+		sql: `
+			DO $$ 
+			BEGIN
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns 
+					WHERE table_name = 'masters' AND column_name = 'user_id'
+				) THEN
+					ALTER TABLE masters ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+				END IF;
+			END $$;`,
+	}
+
+	if _, err := db.ExecContext(ctx, addUserIDMigration.sql); err != nil {
+		log.Printf("Warning: Failed to add user_id column to masters: %v", err)
+	} else {
+		log.Printf("Migration %s completed", addUserIDMigration.name)
+	}
+
+	// Fix photo_urls column type in master_works table
+	fixPhotoURLsMigration := struct {
+		name string
+		sql  string
+	}{
+		name: "fix_photo_urls_column_type",
+		sql: `
+			DO $$ 
+			BEGIN
+				IF EXISTS (
+					SELECT 1 FROM information_schema.columns 
+					WHERE table_name = 'master_works' AND column_name = 'photo_urls' AND data_type = 'ARRAY'
+				) THEN
+					ALTER TABLE master_works ALTER COLUMN photo_urls TYPE TEXT;
+				END IF;
+			END $$;`,
+	}
+
+	if _, err := db.ExecContext(ctx, fixPhotoURLsMigration.sql); err != nil {
+		log.Printf("Warning: Failed to fix photo_urls column type: %v", err)
+	} else {
+		log.Printf("Migration %s completed", fixPhotoURLsMigration.name)
 	}
 
 	// Insert sample data

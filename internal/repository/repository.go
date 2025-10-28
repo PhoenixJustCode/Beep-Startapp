@@ -304,24 +304,6 @@ func (r *Repository) GetMasterByID(id int) (*models.Master, error) {
 	return &master, nil
 }
 
-func (r *Repository) GetMasterReviews(masterID int) ([]models.Review, error) {
-	rows, err := r.db.Query("SELECT id, master_id, user_id, rating, comment, created_at FROM reviews WHERE master_id = $1 ORDER BY created_at DESC", masterID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var reviews []models.Review
-	for rows.Next() {
-		var review models.Review
-		if err := rows.Scan(&review.ID, &review.MasterID, &review.UserID, &review.Rating, &review.Comment, &review.CreatedAt); err != nil {
-			return nil, err
-		}
-		reviews = append(reviews, review)
-	}
-	return reviews, nil
-}
-
 func (r *Repository) GetMasterSchedule(masterID int) ([]models.MasterSchedule, error) {
 	rows, err := r.db.Query("SELECT id, master_id, day_of_week, start_time, end_time, is_active, created_at FROM master_schedule WHERE master_id = $1 AND is_active = true", masterID)
 	if err != nil {
@@ -452,24 +434,32 @@ func (r *Repository) GetAppointmentByID(appointmentID int) (*models.Appointment,
 // Users
 func (r *Repository) GetUserByEmail(email string) (*models.User, error) {
 	var user models.User
-	err := r.db.QueryRow("SELECT id, name, email, phone, password_hash, created_at, updated_at FROM users WHERE email = $1", email).
-		Scan(&user.ID, &user.Name, &user.Email, &user.Phone, &user.PasswordHash, &user.CreatedAt, &user.UpdatedAt)
+	var photoURL sql.NullString
+	err := r.db.QueryRow("SELECT id, name, email, phone, photo_url, password_hash, created_at, updated_at FROM users WHERE email = $1", email).
+		Scan(&user.ID, &user.Name, &user.Email, &user.Phone, &photoURL, &user.PasswordHash, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, err
+	}
+	if photoURL.Valid {
+		user.PhotoURL = photoURL.String
 	}
 	return &user, nil
 }
 
 func (r *Repository) CreateUser(name, email, phone, passwordHash string) (*models.User, error) {
 	var user models.User
+	var photoURL sql.NullString
 	err := r.db.QueryRow(
 		`INSERT INTO users (name, email, phone, password_hash) 
 		 VALUES ($1, $2, $3, $4) 
-		 RETURNING id, name, email, phone, password_hash, created_at, updated_at`,
+		 RETURNING id, name, email, phone, photo_url, password_hash, created_at, updated_at`,
 		name, email, phone, passwordHash,
-	).Scan(&user.ID, &user.Name, &user.Email, &user.Phone, &user.PasswordHash, &user.CreatedAt, &user.UpdatedAt)
+	).Scan(&user.ID, &user.Name, &user.Email, &user.Phone, &photoURL, &user.PasswordHash, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, err
+	}
+	if photoURL.Valid {
+		user.PhotoURL = photoURL.String
 	}
 	return &user, nil
 }
@@ -492,4 +482,269 @@ func (r *Repository) GetUserByID(id int) (*models.User, error) {
 func (r *Repository) UpdateUserPhoto(userID int, photoURL string) error {
 	_, err := r.db.Exec("UPDATE users SET photo_url = $1, updated_at = NOW() WHERE id = $2", photoURL, userID)
 	return err
+}
+
+// Update master photo URL
+func (r *Repository) UpdateMasterPhoto(masterID int, photoURL string) error {
+	_, err := r.db.Exec("UPDATE masters SET photo_url = $1, updated_at = NOW() WHERE id = $2", photoURL, masterID)
+	return err
+}
+
+// Master Profile Methods
+
+// GetMasterByUserID gets master profile by user ID
+func (r *Repository) GetMasterByUserID(userID int) (*models.Master, error) {
+	var master models.Master
+	var specialization, photoURL, address sql.NullString
+	var rating sql.NullFloat64
+	var locationLat, locationLng sql.NullFloat64
+
+	err := r.db.QueryRow("SELECT id, user_id, name, email, phone, specialization, rating, photo_url, location_lat, location_lng, address, created_at, updated_at FROM masters WHERE user_id = $1", userID).
+		Scan(&master.ID, &master.UserID, &master.Name, &master.Email, &master.Phone,
+			&specialization, &rating, &photoURL, &locationLat, &locationLng,
+			&address, &master.CreatedAt, &master.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle nullable fields
+	if specialization.Valid {
+		master.Specialization = specialization.String
+	}
+	if rating.Valid {
+		master.Rating = rating.Float64
+	}
+	if photoURL.Valid {
+		master.PhotoURL = photoURL.String
+	}
+	if locationLat.Valid {
+		master.LocationLat = locationLat.Float64
+	}
+	if locationLng.Valid {
+		master.LocationLng = locationLng.Float64
+	}
+	if address.Valid {
+		master.Address = address.String
+	}
+
+	return &master, nil
+}
+
+// CreateMaster creates a new master profile
+func (r *Repository) CreateMaster(userID int, name, email, phone, specialization, address string) (*models.Master, error) {
+	var master models.Master
+	var specializationNull, photoURLNull, addressNull sql.NullString
+	var locationLatNull, locationLngNull sql.NullFloat64
+	var ratingNull sql.NullFloat64
+
+	err := r.db.QueryRow(`
+		INSERT INTO masters (user_id, name, email, phone, specialization, address, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+		RETURNING id, user_id, name, email, phone, specialization, rating, photo_url, location_lat, location_lng, address, created_at, updated_at
+	`, userID, name, email, phone, specialization, address).
+		Scan(&master.ID, &master.UserID, &master.Name, &master.Email, &master.Phone,
+			&specializationNull, &ratingNull, &photoURLNull, &locationLatNull, &locationLngNull,
+			&addressNull, &master.CreatedAt, &master.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle nullable fields
+	if specializationNull.Valid {
+		master.Specialization = specializationNull.String
+	}
+	if ratingNull.Valid {
+		master.Rating = ratingNull.Float64
+	}
+	if photoURLNull.Valid {
+		master.PhotoURL = photoURLNull.String
+	}
+	if addressNull.Valid {
+		master.Address = addressNull.String
+	}
+	if locationLatNull.Valid {
+		master.LocationLat = locationLatNull.Float64
+	}
+	if locationLngNull.Valid {
+		master.LocationLng = locationLngNull.Float64
+	}
+
+	return &master, nil
+}
+
+// UpdateMaster updates master profile
+func (r *Repository) UpdateMaster(masterID int, name, email, phone, specialization, address string) error {
+	_, err := r.db.Exec(`
+		UPDATE masters SET name = $1, email = $2, phone = $3, specialization = $4, address = $5, updated_at = NOW()
+		WHERE id = $6
+	`, name, email, phone, specialization, address, masterID)
+	return err
+}
+
+// DeleteMasterProfile deletes master profile by user ID
+func (r *Repository) DeleteMasterProfile(userID int) error {
+	_, err := r.db.Exec("DELETE FROM masters WHERE user_id = $1", userID)
+	return err
+}
+
+// Master Works Methods
+
+// GetMasterWorks gets all works for a master
+func (r *Repository) GetMasterWorks(masterID int) ([]models.MasterWork, error) {
+	rows, err := r.db.Query(`
+		SELECT id, master_id, title, work_date, customer_name, amount, photo_urls, created_at
+		FROM master_works WHERE master_id = $1 ORDER BY work_date DESC
+	`, masterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var works []models.MasterWork
+	for rows.Next() {
+		var work models.MasterWork
+		var photoURLs sql.NullString
+		if err := rows.Scan(&work.ID, &work.MasterID, &work.Title, &work.WorkDate,
+			&work.CustomerName, &work.Amount, &photoURLs, &work.CreatedAt); err != nil {
+			return nil, err
+		}
+		// Parse photo URLs array (simplified - in real app would use proper array handling)
+		if photoURLs.Valid && photoURLs.String != "" {
+			work.PhotoURLs = []string{photoURLs.String} // Simplified for now
+		}
+		works = append(works, work)
+	}
+	return works, nil
+}
+
+// CreateMasterWork creates a new work entry
+func (r *Repository) CreateMasterWork(masterID int, title string, workDate time.Time, customerName string, amount float64, photoURLs []string) (*models.MasterWork, error) {
+	var work models.MasterWork
+	var photoURLsStr sql.NullString
+
+	// Handle photo URLs - convert to PostgreSQL array format
+	if len(photoURLs) > 0 {
+		photoURLsStr = sql.NullString{String: photoURLs[0], Valid: true} // Simplified for now
+	}
+
+	err := r.db.QueryRow(`
+		INSERT INTO master_works (master_id, title, work_date, customer_name, amount, photo_urls, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW())
+		RETURNING id, master_id, title, work_date, customer_name, amount, photo_urls, created_at
+	`, masterID, title, workDate, customerName, amount, photoURLsStr).
+		Scan(&work.ID, &work.MasterID, &work.Title, &work.WorkDate,
+			&work.CustomerName, &work.Amount, &photoURLsStr, &work.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	if photoURLsStr.Valid && photoURLsStr.String != "" {
+		work.PhotoURLs = []string{photoURLsStr.String}
+	}
+	return &work, nil
+}
+
+// DeleteMasterWork deletes a work entry
+func (r *Repository) DeleteMasterWork(workID, masterID int) error {
+	result, err := r.db.Exec("DELETE FROM master_works WHERE id = $1 AND master_id = $2", workID, masterID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
+// Master Payment Info Methods
+
+// GetMasterPaymentInfo gets payment info for a master
+func (r *Repository) GetMasterPaymentInfo(masterID int) (*models.MasterPaymentInfo, error) {
+	var info models.MasterPaymentInfo
+	var kaspiCard, freedomCard, halykCard sql.NullString
+
+	err := r.db.QueryRow(`
+		SELECT id, master_id, kaspi_card, freedom_card, halyk_card, created_at, updated_at
+		FROM master_payment_info WHERE master_id = $1
+	`, masterID).
+		Scan(&info.ID, &info.MasterID, &kaspiCard, &freedomCard, &halykCard,
+			&info.CreatedAt, &info.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	if kaspiCard.Valid {
+		info.KaspiCard = kaspiCard.String
+	}
+	if freedomCard.Valid {
+		info.FreedomCard = freedomCard.String
+	}
+	if halykCard.Valid {
+		info.HalykCard = halykCard.String
+	}
+
+	return &info, nil
+}
+
+// UpdateMasterPaymentInfo updates payment info for a master
+func (r *Repository) UpdateMasterPaymentInfo(masterID int, kaspiCard, freedomCard, halykCard string) error {
+	_, err := r.db.Exec(`
+		INSERT INTO master_payment_info (master_id, kaspi_card, freedom_card, halyk_card, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, NOW(), NOW())
+		ON CONFLICT (master_id) DO UPDATE SET
+		kaspi_card = EXCLUDED.kaspi_card,
+		freedom_card = EXCLUDED.freedom_card,
+		halyk_card = EXCLUDED.halyk_card,
+		updated_at = NOW()
+	`, masterID, kaspiCard, freedomCard, halykCard)
+	return err
+}
+
+// Reviews Methods
+
+// GetMasterReviews gets all reviews for a master
+func (r *Repository) GetMasterReviews(masterID int) ([]models.ReviewWithUser, error) {
+	rows, err := r.db.Query(`
+		SELECT r.id, r.master_id, r.user_id, r.rating, r.comment, r.created_at, u.name
+		FROM reviews r
+		JOIN users u ON r.user_id = u.id
+		WHERE r.master_id = $1 ORDER BY r.created_at DESC
+	`, masterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var reviews []models.ReviewWithUser
+	for rows.Next() {
+		var review models.ReviewWithUser
+		if err := rows.Scan(&review.ID, &review.MasterID, &review.UserID, &review.Rating,
+			&review.Comment, &review.CreatedAt, &review.UserName); err != nil {
+			return nil, err
+		}
+		reviews = append(reviews, review)
+	}
+	return reviews, nil
+}
+
+// CreateReview creates a new review
+func (r *Repository) CreateReview(masterID, userID, rating int, comment string) (*models.Review, error) {
+	var review models.Review
+	err := r.db.QueryRow(`
+		INSERT INTO reviews (master_id, user_id, rating, comment, created_at)
+		VALUES ($1, $2, $3, $4, NOW())
+		RETURNING id, master_id, user_id, rating, comment, created_at
+	`, masterID, userID, rating, comment).
+		Scan(&review.ID, &review.MasterID, &review.UserID, &review.Rating, &review.Comment, &review.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &review, nil
 }

@@ -383,9 +383,15 @@ return;
     }
 
     try {
-const response = await fetch(`${API_URL}/appointments`, {
+        const token = localStorage.getItem('token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) {
+            headers['Authorization'] = 'Bearer ' + token;
+        }
+        
+        const response = await fetch(`${API_URL}/appointments`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: headers,
     body: JSON.stringify({
 master_id: selectedMasterId,
 service_id: parseInt(selectedServiceId),
@@ -396,7 +402,11 @@ comment: comment
 });
 
 const data = await response.json();
-showResults(`Appointment booked successfully! ID: ${data.id}`, 'success');
+if (response.ok) {
+    showResults(`Appointment booked successfully! ID: ${data.id}`, 'success');
+} else {
+    showResults(data.error || 'Error booking appointment', 'error');
+}
 loadMyAppointments();
     } catch (error) {
 showResults('Error booking appointment', 'error');
@@ -406,7 +416,13 @@ console.error(error);
 
 async function loadMyAppointments() {
     try {
-        const response = await fetch(`${API_URL}/appointments`);
+        const token = localStorage.getItem('token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) {
+            headers['Authorization'] = 'Bearer ' + token;
+        }
+        
+        const response = await fetch(`${API_URL}/appointments`, { headers });
         const data = await response.json();
         const container = document.getElementById('appointments-list');
 

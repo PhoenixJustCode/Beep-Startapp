@@ -30,8 +30,26 @@ func SetupRouter(h *handlers.Handlers) *gin.Engine {
 		// User profile
 		user := v1.Group("/user")
 		{
+			user.GET("/profile", h.GetUserProfile)
 			user.PUT("/profile", h.UpdateUserProfile)
 			user.POST("/photo", h.UploadProfilePhoto)
+		}
+
+		// Master profile
+		master := v1.Group("/master")
+		{
+			master.GET("/profile", h.GetMasterProfile)
+			master.POST("/profile", h.CreateMasterProfile)
+			master.PUT("/profile", h.UpdateMasterProfile)
+			master.DELETE("/profile", h.DeleteMasterProfile)
+			master.POST("/photo", h.UploadMasterPhoto)
+			master.GET("/works", h.GetMasterWorks)
+			master.POST("/works", h.CreateMasterWork)
+			master.DELETE("/works/:id", h.DeleteMasterWork)
+			master.GET("/payment-info", h.GetMasterPaymentInfo)
+			master.PUT("/payment-info", h.UpdateMasterPaymentInfo)
+			master.GET("/reviews", h.GetMasterReviews)
+			master.POST("/reviews", h.CreateReview)
 		}
 
 		// Categories
@@ -69,6 +87,12 @@ func SetupRouter(h *handlers.Handlers) *gin.Engine {
 			masters.GET("/:id/reviews", h.GetMasterReviews)
 			masters.GET("/:id/schedule", h.GetMasterSchedule)
 			masters.GET("/:id/available-slots", h.GetAvailableSlots)
+		}
+
+		// Reviews
+		reviews := v1.Group("/reviews")
+		{
+			reviews.POST("", h.CreateReview)
 		}
 
 		// Appointments

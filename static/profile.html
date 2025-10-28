@@ -47,7 +47,6 @@
                     <div class="info-item">
                         <label>Имя:</label>
                         <span id="userName">-</span>
-                        <button class="edit-field-btn" onclick="openEditModal('name')" title="Редактировать имя">✏️</button>
                     </div>
                     <div class="info-item">
                         <label>Email:</label>
@@ -112,7 +111,7 @@
                 <div id="userAppointments" style="max-height: 500px; overflow-y: auto;">
                     <p style="color: #999;">Загрузка...</p>
                 </div>
-            </div>
+                </div>
             
             <!-- Edit Appointment Modal -->
             <div id="editAppointmentModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
@@ -142,19 +141,289 @@
                         </div>
                     </form>
                 </div>
-            </div>
+                </div>
             </div>
         </div>
 
         <!-- Вкладка профиля мастера -->
         <div id="masterTab" class="tab-content" style="display: none;">
-            <div class="card">
+            <!-- No Master Profile -->
+            <div id="noMasterProfile" class="card">
                 <h2>👨‍🔧 Профиль мастера</h2>
                 <p style="color: #999; padding: 40px; text-align: center; background: #f8f9fa; border-radius: 10px;">
                     У вас пока нет профиля мастера.<br>
-                    Свяжитесь с администратором для создания профиля мастера.
+                    Создайте профиль мастера для управления своими работами и отзывами.
                 </p>
+                <button onclick="showCreateMasterForm()" style="margin: 20px auto; display: block; padding: 12px 32px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600;">Создать профиль мастера</button>
             </div>
+
+            <!-- Create Master Form -->
+            <div id="createMasterForm" class="card" style="display: none;">
+                <h2>👨‍🔧 Создать профиль мастера</h2>
+                <form id="masterForm" onsubmit="createMasterProfile(event)">
+                    <div class="profile-info">
+                        <div class="info-item">
+                            <label>Имя:</label>
+                            <input type="text" id="masterName" required style="flex: 1; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;">
+                        </div>
+                        <div class="info-item">
+                            <label>Email:</label>
+                            <input type="email" id="masterEmail" required style="flex: 1; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;">
+                        </div>
+                        <div class="info-item">
+                            <label>Телефон:</label>
+                            <input type="tel" id="masterPhone" required style="flex: 1; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;">
+                        </div>
+                        <div class="info-item">
+                            <label>Специализация:</label>
+                            <input type="text" id="masterSpecialization" style="flex: 1; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;">
+                        </div>
+                        <div class="info-item">
+                            <label>Адрес:</label>
+                            <input type="text" id="masterAddress" style="flex: 1; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 30px;">
+                        <button type="submit" style="flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Создать профиль</button>
+                        <button type="button" onclick="hideCreateMasterForm()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Отмена</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Existing Master Profile -->
+            <div id="existingMasterProfile" style="display: none;">
+                <!-- Master Info Card -->
+                <div class="card">
+                    <h2 style="margin-bottom: 20px;">
+                        👨‍🔧 <span id="displayMasterName">-</span>
+                        <span id="masterRating" style="color: #f59e0b; font-size: 24px; margin-left: 10px;">★★★★★</span>
+                    </h2>
+                    
+                    <!-- Master Profile Picture -->
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <div id="masterProfilePicture" style="width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: inline-flex; align-items: center; justify-content: center; font-size: 48px; color: white; font-weight: bold; position: relative; cursor: pointer;" onclick="document.getElementById('masterPhotoInput').click()">
+                            <span id="masterInitial">М</span>
+                            <input type="file" id="masterPhotoInput" accept="image/*" style="display: none;" onchange="uploadMasterPhoto(event)">
+                        </div>
+                        <p style="margin-top: 10px; color: var(--gray); font-size: 14px; cursor: pointer;" onclick="document.getElementById('masterPhotoInput').click()">Нажмите для загрузки фото</p>
+                    </div>
+                    
+                    <div class="profile-info">
+                        <div class="info-item">
+                            <label>Email:</label>
+                            <span id="displayMasterEmail">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Телефон:</label>
+                            <span id="displayMasterPhone">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Специализация:</label>
+                            <span id="displayMasterSpecialization">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Адрес:</label>
+                            <span id="displayMasterAddress">-</span>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button onclick="showMasterEditForm()" style="padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600;">✏️ Редактировать профиль</button>
+                    </div>
+                </div>
+
+                <!-- Payment Info Card -->
+                <div class="card">
+                    <h2 style="margin-bottom: 20px;">💳 Реквизиты оплаты</h2>
+                    <div class="profile-info">
+                        <div class="info-item">
+                            <label>Kaspi Bank:</label>
+                            <span id="kaspiCard">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Freedom Bank:</label>
+                            <span id="freedomCard">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Halyk Bank:</label>
+                            <span id="halykCard">-</span>
+                        </div>
+                    </div>
+                    <button onclick="showEditPaymentModal()" style="margin-top: 20px; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Редактировать</button>
+                </div>
+
+                <!-- Works Gallery Card -->
+                <div class="card">
+                    <h2 style="margin-bottom: 20px;">🛠️ Мои работы</h2>
+                    <button onclick="showAddWorkModal()" style="margin-bottom: 20px; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">➕ Добавить работу</button>
+                    <div id="worksGallery" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;">
+                        <!-- Works will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Reviews Card -->
+                <div class="card">
+                    <h2 style="margin-bottom: 20px;">⭐ Отзывы</h2>
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                        <button onclick="showReviewsModal()" style="flex: 1; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">👁️ Смотреть отзывы</button>
+                        <button onclick="showAddReviewModal()" style="flex: 1; padding: 10px 20px; background: var(--secondary); color: white; border: none; border-radius: 8px; cursor: pointer;">➕ Добавить отзыв</button>
+                    </div>
+                    <div id="reviewsPreview">
+                        <!-- Reviews preview will be loaded here -->
+                    </div>
+                </div>
+
+               <!-- Payment Feature -->
+               <div class="card">
+                   <h2 style="margin-bottom: 20px;">💳 Оплата услуг</h2>
+                   <p style="color: #64748b;">Интеграция оплаты в приложении (в разработке)</p>
+                   <button style="margin-top: 20px; padding: 10px 20px; background: var(--secondary); color: white; border: none; border-radius: 8px; cursor: pointer;" disabled>Оплатить через приложение</button>
+               </div>
+
+               <!-- Delete Master Profile -->
+               <div class="card">
+                   <h2 style="margin-bottom: 20px;">🗑️ Управление профилем</h2>
+                   <p style="color: #64748b;">Удалить профиль мастера</p>
+                   <button onclick="deleteMasterProfile()" style="margin-top: 20px; padding: 10px 20px; background: #e74c3c; color: white; border: none; border-radius: 8px; cursor: pointer;">Удалить профиль мастера</button>
+               </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add Work -->
+    <div id="addWorkModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 15px; padding: 30px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto;">
+            <h2>Добавить работу</h2>
+            <form id="addWorkForm" onsubmit="saveWork(event)">
+                <input type="hidden" id="workId">
+                <div class="form-group">
+                    <label>Название работы:</label>
+                    <input type="text" id="workTitle" required>
+                </div>
+                <div class="form-group">
+                    <label>Дата:</label>
+                    <input type="date" id="workDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Заказчик (Имя Фамилия):</label>
+                    <input type="text" id="workCustomer" required>
+                </div>
+                <div class="form-group">
+                    <label>Сумма (KZT):</label>
+                    <input type="number" id="workAmount" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Фотографии:</label>
+                    <input type="file" id="workPhotos" multiple accept="image/*">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" style="flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Сохранить</button>
+                    <button type="button" onclick="closeAddWorkModal()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Reviews -->
+    <div id="reviewsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 15px; padding: 30px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
+            <h2>Отзывы</h2>
+            <div id="reviewsList">
+                <!-- Reviews will be loaded here -->
+            </div>
+            <button onclick="closeReviewsModal()" style="margin-top: 20px; width: 100%; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Закрыть</button>
+        </div>
+    </div>
+
+    <!-- Modal: Edit Payment Info -->
+    <div id="editPaymentModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;">
+            <h2>Редактировать реквизиты</h2>
+            <form id="editPaymentForm" onsubmit="savePaymentInfo(event)">
+                <div class="form-group">
+                    <label>Kaspi Bank:</label>
+                    <input type="text" id="editKaspiCard" placeholder="Номер карты Kaspi">
+                </div>
+                <div class="form-group">
+                    <label>Freedom Bank:</label>
+                    <input type="text" id="editFreedomCard" placeholder="Номер карты Freedom">
+                </div>
+                <div class="form-group">
+                    <label>Halyk Bank:</label>
+                    <input type="text" id="editHalykCard" placeholder="Номер карты Halyk">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" style="flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Сохранить</button>
+                    <button type="button" onclick="closeEditPaymentModal()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Add Review -->
+    <div id="addReviewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;">
+            <h2>Добавить отзыв</h2>
+            <form id="addReviewForm" onsubmit="saveReview(event)">
+                <div class="form-group">
+                    <label>Выберите мастера:</label>
+                    <select id="reviewMasterId" required style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
+                        <option value="">Выберите мастера...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Оценка:</label>
+                    <div style="display: flex; gap: 5px; margin-top: 10px;">
+                        <span id="star1" onclick="setRating(1)" style="font-size: 30px; cursor: pointer; color: #ddd;">★</span>
+                        <span id="star2" onclick="setRating(2)" style="font-size: 30px; cursor: pointer; color: #ddd;">★</span>
+                        <span id="star3" onclick="setRating(3)" style="font-size: 30px; cursor: pointer; color: #ddd;">★</span>
+                        <span id="star4" onclick="setRating(4)" style="font-size: 30px; cursor: pointer; color: #ddd;">★</span>
+                        <span id="star5" onclick="setRating(5)" style="font-size: 30px; cursor: pointer; color: #ddd;">★</span>
+                    </div>
+                    <input type="hidden" id="reviewRating" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Комментарий:</label>
+                    <textarea id="reviewComment" rows="4" placeholder="Оставьте отзыв о работе мастера..."></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" style="flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Добавить отзыв</button>
+                    <button type="button" onclick="closeAddReviewModal()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Edit Master Profile -->
+    <div id="editMasterModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;">
+            <h2>Редактировать профиль мастера</h2>
+            <form id="editMasterForm" onsubmit="saveMasterProfile(event)">
+                <div class="form-group">
+                    <label>Имя:</label>
+                    <input type="text" id="editMasterName" required style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
+                </div>
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input type="email" id="editMasterEmail" required style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
+                </div>
+                <div class="form-group">
+                    <label>Телефон:</label>
+                    <input type="tel" id="editMasterPhone" required style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
+                </div>
+                <div class="form-group">
+                    <label>Специализация:</label>
+                    <input type="text" id="editMasterSpecialization" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
+                </div>
+                <div class="form-group">
+                    <label>Адрес:</label>
+                    <input type="text" id="editMasterAddress" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" style="flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Сохранить</button>
+                    <button type="button" onclick="closeMasterEditModal()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Отмена</button>
+                </div>
+            </form>
         </div>
     </div>
 

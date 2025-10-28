@@ -14,7 +14,7 @@
                     <h1>✨ BEEP</h1>
                     <p class="tagline">Личный кабинет</p>
                 </div>
-                <button onclick="window.location.href='/'" style="padding: 12px 24px; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 25px; font-weight: 600; font-size: 14px; cursor: pointer; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);">На главную</button>
+                <button onclick="window.location.href='/'" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500;">На главную</button>
             </div>
         </header>
 
@@ -31,9 +31,15 @@
             <div class="main-content">
             <!-- User Profile Card -->
             <div class="card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2>👤 Мой профиль</h2>
-                    <button id="editProfileBtn" onclick="toggleEditMode()" style="padding: 8px 16px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">Редактировать</button>
+                <h2 style="margin-bottom: 20px;">👤 Мой профиль</h2>
+                
+                <!-- Profile Picture -->
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <div id="profilePicture" style="width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: inline-flex; align-items: center; justify-content: center; font-size: 48px; color: white; font-weight: bold; position: relative; cursor: pointer;" onclick="document.getElementById('profilePhotoInput').click()">
+                        <span id="profileInitial">А</span>
+                        <input type="file" id="profilePhotoInput" accept="image/*" style="display: none;" onchange="uploadProfilePhoto(event)">
+                    </div>
+                    <p style="margin-top: 10px; color: var(--gray); font-size: 14px; cursor: pointer;" onclick="document.getElementById('profilePhotoInput').click()">Нажмите для загрузки фото</p>
                 </div>
                 
                 <!-- View Mode -->
@@ -88,7 +94,37 @@
                 <div id="userAppointments" style="max-height: 500px; overflow-y: auto;">
                     <p style="color: #999;">Загрузка...</p>
                 </div>
+            </div>
+            
+            <!-- Edit Appointment Modal -->
+            <div id="editAppointmentModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+                <div style="background: white; border-radius: 15px; padding: 30px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto;">
+                    <h2 style="margin-bottom: 20px;">Редактировать запись</h2>
+                    <form id="editAppointmentForm" onsubmit="saveAppointmentChanges(event)">
+                        <input type="hidden" id="editAppointmentId">
+                        
+                        <div class="form-group">
+                            <label for="editDate">Дата:</label>
+                            <input type="date" id="editDate" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="editTime">Время:</label>
+                            <input type="time" id="editTime" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="editComment">Комментарий:</label>
+                            <textarea id="editComment" rows="4"></textarea>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button type="submit" style="flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Сохранить</button>
+                            <button type="button" onclick="closeEditModal()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Отмена</button>
+                        </div>
+                    </form>
                 </div>
+            </div>
             </div>
         </div>
 

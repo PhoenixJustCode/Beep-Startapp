@@ -45,41 +45,12 @@ async function loadUserProfile() {
     document.getElementById('userPhone').textContent = userObj.phone || '-';
     document.getElementById('userCreated').textContent = userObj.created_at ? new Date(userObj.created_at).toLocaleDateString('ru-RU') : '-';
     
+    // Set profile initial
+    const firstLetter = userObj.name ? userObj.name.charAt(0).toUpperCase() : 'A';
+    document.getElementById('profileInitial').textContent = firstLetter;
+    
     // Store current user data for editing
     window.currentUser = userObj;
-}
-
-function toggleEditMode() {
-    const viewMode = document.getElementById('profileViewMode');
-    const editMode = document.getElementById('profileEditMode');
-    const editBtn = document.getElementById('editProfileBtn');
-    
-    if (viewMode.style.display === 'none') {
-        // Switch to view mode
-        viewMode.style.display = 'block';
-        editMode.style.display = 'none';
-        editBtn.textContent = 'Редактировать';
-    } else {
-        // Switch to edit mode
-        viewMode.style.display = 'none';
-        editMode.style.display = 'block';
-        editBtn.textContent = 'Отменить';
-        
-        // Fill edit form with current data
-        document.getElementById('editName').value = window.currentUser.name || '';
-        document.getElementById('editEmail').value = window.currentUser.email || '';
-        document.getElementById('editPhone').value = window.currentUser.phone || '';
-    }
-}
-
-function cancelEdit() {
-    const viewMode = document.getElementById('profileViewMode');
-    const editMode = document.getElementById('profileEditMode');
-    const editBtn = document.getElementById('editProfileBtn');
-    
-    viewMode.style.display = 'block';
-    editMode.style.display = 'none';
-    editBtn.textContent = 'Редактировать';
 }
 
 async function saveProfile(event) {
@@ -116,11 +87,16 @@ async function saveProfile(event) {
         document.getElementById('userEmail').textContent = email;
         document.getElementById('userPhone').textContent = phone;
         
-        // Switch back to view mode
-        cancelEdit();
+        // Update profile initial
+        const firstLetter = name ? name.charAt(0).toUpperCase() : 'A';
+        document.getElementById('profileInitial').textContent = firstLetter;
         
         // Show success message
         showMessage('Профиль успешно обновлен!', 'success');
+        
+        // Hide edit mode
+        document.getElementById('profileViewMode').style.display = 'block';
+        document.getElementById('profileEditMode').style.display = 'none';
         
     } catch (error) {
         console.error('Error updating profile:', error);
@@ -284,6 +260,87 @@ function showMessage(message, type) {
     }, 3000);
 }
 
+// Profile photo upload
+function uploadProfilePhoto(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+        showMessage('Пожалуйста, выберите изображение', 'error');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('profilePicture').style.background = `url(${e.target.result}) center/cover`;
+        document.getElementById('profilePicture').style.color = 'transparent';
+        document.getElementById('profileInitial').style.display = 'none';
+        showMessage('Фото загружено!', 'success');
+    };
+    reader.readAsDataURL(file);
+}
+
+// Edit appointment
+function editAppointment(appointmentId) {
+    const modal = document.getElementById('editAppointmentModal');
+    const form = document.getElementById('editAppointmentForm');
+    
+    // Load appointment data
+    fetch(`${API_URL}/appointments/${appointmentId}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('editAppointmentId').value = data.id;
+            document.getElementById('editDate').value = data.date ? data.date.split('T')[0] : '';
+            document.getElementById('editTime').value = data.time || '';
+            document.getElementById('editComment').value = data.comment || '';
+            
+            modal.style.display = 'flex';
+        })
+        .catch(error => {
+            console.error('Error loading appointment:', error);
+            showMessage('Ошибка загрузки записи', 'error');
+        });
+}
+
+// Close edit modal
+function closeEditModal() {
+    document.getElementById('editAppointmentModal').style.display = 'none';
+}
+
+// Save appointment changes
+async function saveAppointmentChanges(event) {
+    event.preventDefault();
+    
+    const appointmentId = document.getElementById('editAppointmentId').value;
+    const date = document.getElementById('editDate').value;
+    const time = document.getElementById('editTime').value;
+    const comment = document.getElementById('editComment').value;
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/appointments/${appointmentId}`, {
+            method: 'PUT',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ date, time, comment })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update appointment');
+        }
+
+        showMessage('Запись успешно обновлена!', 'success');
+        closeEditModal();
+        loadUserAppointments(); // Reload appointments
+        
+    } catch (error) {
+        console.error('Error updating appointment:', error);
+        showMessage('Ошибка при обновлении записи: ' + error.message, 'error');
+    }
+}
+
 async function loadUserAppointments() {
     try {
         const response = await fetch(`${API_URL}/appointments`);
@@ -335,6 +392,9 @@ async function loadUserAppointments() {
                     <p><strong>🔧 Услуга:</strong> ${apt.service_name || 'Не указана'}</p>
                     <p><strong>👨‍🔧 Мастер:</strong> ${apt.master_name || 'Не назначен'}</p>
                     ${apt.comment ? `<p><strong>💬 Комментарий:</strong> ${apt.comment}</p>` : ''}
+                </div>
+                <div class="appointment-actions" style="margin-top: 15px; display: flex; gap: 10px;">
+                    <button onclick="editAppointment(${apt.id})" style="flex: 1; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">✏️ Редактировать</button>
                 </div>
             `;
             container.appendChild(div);

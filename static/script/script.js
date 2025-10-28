@@ -4,6 +4,22 @@ let selectedMasterId = null;
 let selectedServiceId = null;
 let allMasters = []; // Store all masters for filtering
 
+// Utility function to log duplicates
+function logDuplicates(data, type, uniqueData) {
+    if (data.length !== uniqueData.length) {
+        console.warn(`⚠️ Found ${data.length - uniqueData.length} duplicate ${type}:`, 
+            data.filter((item, index) => 
+                index !== data.findIndex(d => 
+                    type === 'categories' ? d.name === item.name :
+                    type === 'services' ? d.name === item.name :
+                    type === 'cars' ? (d.brand === item.brand && d.model === item.model && d.year === item.year) :
+                    type === 'masters' ? (d.name === item.name && d.email === item.email) : false
+                )
+            )
+        );
+    }
+}
+
 // Load categories on page load
 window.onload = function() {
     loadCategories();
@@ -20,18 +36,28 @@ function setDefaultDate() {
 
 async function loadCategories() {
     try {
-const response = await fetch(`${API_URL}/categories`);
-const data = await response.json();
-const select = document.getElementById('category');
-select.innerHTML = '<option value="">Select a category...</option>';
-data.forEach(cat => {
-    const option = document.createElement('option');
-    option.value = cat.id;
-    option.textContent = cat.name;
-    select.appendChild(option);
-});
+        const response = await fetch(`${API_URL}/categories`);
+        const data = await response.json();
+        
+        // Remove duplicates by name
+        const uniqueCategories = data.filter((category, index, self) => 
+            index === self.findIndex(c => c.name === category.name)
+        );
+        
+        logDuplicates(data, 'categories', uniqueCategories);
+        console.log(`Loaded ${data.length} categories, ${uniqueCategories.length} unique`);
+        
+        const select = document.getElementById('category');
+        select.innerHTML = '<option value="">Select a category...</option>';
+        
+        uniqueCategories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.id;
+            option.textContent = cat.name;
+            select.appendChild(option);
+        });
     } catch (error) {
-console.error('Error loading categories:', error);
+        console.error('Error loading categories:', error);
     }
 }
 
@@ -40,18 +66,28 @@ async function loadServices() {
     if (!categoryId) return;
 
     try {
-const response = await fetch(`${API_URL}/services?category_id=${categoryId}`);
-const data = await response.json();
-const select = document.getElementById('service');
-select.innerHTML = '<option value="">Select a service...</option>';
-data.forEach(service => {
-    const option = document.createElement('option');
-    option.value = service.id;
-    option.textContent = service.name;
-    select.appendChild(option);
-});
+        const response = await fetch(`${API_URL}/services?category_id=${categoryId}`);
+        const data = await response.json();
+        
+        // Remove duplicates by name
+        const uniqueServices = data.filter((service, index, self) => 
+            index === self.findIndex(s => s.name === service.name)
+        );
+        
+        logDuplicates(data, 'services', uniqueServices);
+        console.log(`Loaded ${data.length} services, ${uniqueServices.length} unique`);
+        
+        const select = document.getElementById('service');
+        select.innerHTML = '<option value="">Select a service...</option>';
+        
+        uniqueServices.forEach(service => {
+            const option = document.createElement('option');
+            option.value = service.id;
+            option.textContent = service.name;
+            select.appendChild(option);
+        });
     } catch (error) {
-console.error('Error loading services:', error);
+        console.error('Error loading services:', error);
     }
 }
 
@@ -59,18 +95,32 @@ async function loadCars() {
     selectedServiceId = document.getElementById('service').value;
     
     try {
-const response = await fetch(`${API_URL}/cars`);
-const data = await response.json();
-const select = document.getElementById('car');
-select.innerHTML = '<option value="">Select a car...</option>';
-data.forEach(car => {
-    const option = document.createElement('option');
-    option.value = car.id;
-    option.textContent = `${car.brand} ${car.model}`;
-    select.appendChild(option);
-});
+        const response = await fetch(`${API_URL}/cars`);
+        const data = await response.json();
+        
+        // Remove duplicates by brand + model + year
+        const uniqueCars = data.filter((car, index, self) => 
+            index === self.findIndex(c => 
+                c.brand === car.brand && 
+                c.model === car.model && 
+                c.year === car.year
+            )
+        );
+        
+        logDuplicates(data, 'cars', uniqueCars);
+        console.log(`Loaded ${data.length} cars, ${uniqueCars.length} unique`);
+        
+        const select = document.getElementById('car');
+        select.innerHTML = '<option value="">Select a car...</option>';
+        
+        uniqueCars.forEach(car => {
+            const option = document.createElement('option');
+            option.value = car.id;
+            option.textContent = `${car.brand} ${car.model}`;
+            select.appendChild(option);
+        });
     } catch (error) {
-console.error('Error loading cars:', error);
+        console.error('Error loading cars:', error);
     }
 }
 
@@ -78,15 +128,27 @@ async function loadMasters() {
     try {
         const response = await fetch(`${API_URL}/masters`);
         const data = await response.json();
-        allMasters = data; // Store all masters
+        
+        // Remove duplicates by name + email
+        const uniqueMasters = data.filter((master, index, self) => 
+            index === self.findIndex(m => 
+                m.name === master.name && 
+                m.email === master.email
+            )
+        );
+        
+        allMasters = uniqueMasters; // Store unique masters
+        logDuplicates(data, 'masters', uniqueMasters);
+        console.log(`Loaded ${data.length} masters, ${uniqueMasters.length} unique`);
+        
         const container = document.getElementById('masters-container');
 
-        if (data.length === 0) {
+        if (uniqueMasters.length === 0) {
             container.innerHTML = '<div class="loading">No masters available</div>';
             return;
         }
 
-        renderMasters(data);
+        renderMasters(uniqueMasters);
     } catch (error) {
         console.error('Error loading masters:', error);
         document.getElementById('masters-container').innerHTML = '<div class="error">Error loading masters</div>';
@@ -119,6 +181,8 @@ function filterMasters() {
         master.specialization.toLowerCase().includes(searchTerm) ||
         (master.address && master.address.toLowerCase().includes(searchTerm))
     );
+    
+    console.log(`Filtered ${allMasters.length} masters to ${filteredMasters.length} results`);
     renderMasters(filteredMasters);
 }
 

@@ -136,32 +136,89 @@ func (r *Repository) CalculatePrice(serviceID, carID int) (*models.CalculatePric
 		return nil, err
 	}
 
-	// Calculate price with multipliers
+	// Calculate car age
 	carAge := 2024 - car.Year
 	price := service.BasePrice
 
+	// Create price details array
+	var priceDetails []models.PriceDetail
+
+	// Add base price detail
+	priceDetails = append(priceDetails, models.PriceDetail{
+		Description: "Базовая цена услуги",
+		Amount:      service.BasePrice,
+		IsAddition:  false,
+	})
+
 	// Apply age-based multipliers
 	if carAge > 10 {
-		price *= 1.2 // Older cars are more expensive to service
+		oldCarMultiplier := 1.2
+		oldCarAmount := service.BasePrice * (oldCarMultiplier - 1)
+		price *= oldCarMultiplier
+		priceDetails = append(priceDetails, models.PriceDetail{
+			Description: "Надбавка за старый автомобиль (+20%)",
+			Amount:      oldCarAmount,
+			Multiplier:  oldCarMultiplier,
+			IsAddition:  true,
+		})
 	} else if carAge < 3 {
-		price *= 0.9 // Newer cars are cheaper
+		newCarMultiplier := 0.9
+		newCarDiscount := service.BasePrice * (1 - newCarMultiplier)
+		price *= newCarMultiplier
+		priceDetails = append(priceDetails, models.PriceDetail{
+			Description: "Скидка за новый автомобиль (-10%)",
+			Amount:      -newCarDiscount,
+			Multiplier:  newCarMultiplier,
+			IsAddition:  true,
+		})
 	}
 
 	// Apply car type multipliers
 	if car.Type == "Premium" {
-		price *= 1.5
+		premiumMultiplier := 1.5
+		premiumAmount := service.BasePrice * (premiumMultiplier - 1)
+		price *= premiumMultiplier
+		priceDetails = append(priceDetails, models.PriceDetail{
+			Description: "Надбавка за премиум автомобиль (+50%)",
+			Amount:      premiumAmount,
+			Multiplier:  premiumMultiplier,
+			IsAddition:  true,
+		})
+	} else if car.Type == "Luxury" {
+		luxuryMultiplier := 2.0
+		luxuryAmount := service.BasePrice * (luxuryMultiplier - 1)
+		price *= luxuryMultiplier
+		priceDetails = append(priceDetails, models.PriceDetail{
+			Description: "Надбавка за люксовый автомобиль (+100%)",
+			Amount:      luxuryAmount,
+			Multiplier:  luxuryMultiplier,
+			IsAddition:  true,
+		})
 	}
 
 	response := &models.CalculatePriceResponse{
-		ServiceID:   service.ID,
-		ServiceName: service.Name,
-		BasePrice:   service.BasePrice,
-		FinalPrice:  price,
-		MinPrice:    service.MinPrice,
-		MaxPrice:    service.MaxPrice,
+		ServiceID:    service.ID,
+		ServiceName:  service.Name,
+		CarBrand:     car.Brand,
+		CarModel:     car.Model,
+		CarYear:      car.Year,
+		CarType:      car.Type,
+		CarAge:       carAge,
+		BasePrice:    service.BasePrice,
+		FinalPrice:   price,
+		MinPrice:     service.MinPrice,
+		MaxPrice:     service.MaxPrice,
+		PriceDetails: priceDetails,
 	}
 
 	return response, nil
+}
+
+// Update user profile
+func (r *Repository) UpdateUserProfile(userID int, name, email, phone string) error {
+	_, err := r.db.Exec("UPDATE users SET name = $1, email = $2, phone = $3, updated_at = NOW() WHERE id = $4",
+		name, email, phone, userID)
+	return err
 }
 
 // Masters
@@ -175,9 +232,36 @@ func (r *Repository) GetAllMasters() ([]models.Master, error) {
 	var masters []models.Master
 	for rows.Next() {
 		var master models.Master
-		if err := rows.Scan(&master.ID, &master.Name, &master.Email, &master.Phone, &master.Specialization, &master.Rating, &master.PhotoURL, &master.LocationLat, &master.LocationLng, &master.Address, &master.CreatedAt, &master.UpdatedAt); err != nil {
+		var specialization, photoURL, address sql.NullString
+		var rating sql.NullFloat64
+		var locationLat, locationLng sql.NullFloat64
+
+		if err := rows.Scan(&master.ID, &master.Name, &master.Email, &master.Phone,
+			&specialization, &rating, &photoURL, &locationLat, &locationLng,
+			&address, &master.CreatedAt, &master.UpdatedAt); err != nil {
 			return nil, err
 		}
+
+		// Handle nullable fields
+		if specialization.Valid {
+			master.Specialization = specialization.String
+		}
+		if rating.Valid {
+			master.Rating = rating.Float64
+		}
+		if photoURL.Valid {
+			master.PhotoURL = photoURL.String
+		}
+		if locationLat.Valid {
+			master.LocationLat = locationLat.Float64
+		}
+		if locationLng.Valid {
+			master.LocationLng = locationLng.Float64
+		}
+		if address.Valid {
+			master.Address = address.String
+		}
+
 		masters = append(masters, master)
 	}
 	return masters, nil
@@ -185,11 +269,38 @@ func (r *Repository) GetAllMasters() ([]models.Master, error) {
 
 func (r *Repository) GetMasterByID(id int) (*models.Master, error) {
 	var master models.Master
+	var specialization, photoURL, address sql.NullString
+	var rating sql.NullFloat64
+	var locationLat, locationLng sql.NullFloat64
+
 	err := r.db.QueryRow("SELECT id, name, email, phone, specialization, rating, photo_url, location_lat, location_lng, address, created_at, updated_at FROM masters WHERE id = $1", id).
-		Scan(&master.ID, &master.Name, &master.Email, &master.Phone, &master.Specialization, &master.Rating, &master.PhotoURL, &master.LocationLat, &master.LocationLng, &master.Address, &master.CreatedAt, &master.UpdatedAt)
+		Scan(&master.ID, &master.Name, &master.Email, &master.Phone,
+			&specialization, &rating, &photoURL, &locationLat, &locationLng,
+			&address, &master.CreatedAt, &master.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
+
+	// Handle nullable fields
+	if specialization.Valid {
+		master.Specialization = specialization.String
+	}
+	if rating.Valid {
+		master.Rating = rating.Float64
+	}
+	if photoURL.Valid {
+		master.PhotoURL = photoURL.String
+	}
+	if locationLat.Valid {
+		master.LocationLat = locationLat.Float64
+	}
+	if locationLng.Valid {
+		master.LocationLng = locationLng.Float64
+	}
+	if address.Valid {
+		master.Address = address.String
+	}
+
 	return &master, nil
 }
 

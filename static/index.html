@@ -110,6 +110,10 @@
                             <span class="arrow">▼</span>
                         </div>
                         <div class="dropdown-body" id="master-dropdown-body" style="display: none;">
+                            <div class="dropdown-search">
+                                <input type="text" id="master-search" placeholder="Search masters..." onkeyup="filterMasters()">
+                                <span class="search-icon">🔍</span>
+                            </div>
                             <div id="masters-container" class="masters-grid-dropdown">
                                 <div class="loading">Loading masters...</div>
                             </div>

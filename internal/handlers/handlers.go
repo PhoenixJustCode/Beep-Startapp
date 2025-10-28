@@ -25,6 +25,12 @@ func (h *Handlers) GetCategories(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Prevent caching
+	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+	c.Header("Pragma", "no-cache")
+	c.Header("Expires", "0")
+
 	c.JSON(http.StatusOK, categories)
 }
 
@@ -410,4 +416,29 @@ func (h *Handlers) Register(c *gin.Context) {
 			"created_at": user.CreatedAt,
 		},
 	})
+}
+
+func (h *Handlers) UpdateUserProfile(c *gin.Context) {
+	type Request struct {
+		Name  string `json:"name" binding:"required"`
+		Email string `json:"email" binding:"required"`
+		Phone string `json:"phone"`
+	}
+
+	var req Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// TODO: Get user ID from JWT token (for now using 1 as default)
+	userID := 1
+
+	// Update user profile
+	if err := h.repo.UpdateUserProfile(userID, req.Name, req.Email, req.Phone); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
 }

@@ -27,6 +27,12 @@ func SetupRouter(h *handlers.Handlers) *gin.Engine {
 			auth.POST("/register", h.Register)
 		}
 
+		// User profile
+		user := v1.Group("/user")
+		{
+			user.PUT("/profile", h.UpdateUserProfile)
+		}
+
 		// Categories
 		categories := v1.Group("/categories")
 		{

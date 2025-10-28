@@ -2,6 +2,7 @@
 const API_URL = window.location.origin + '/api/v1';
 let selectedMasterId = null;
 let selectedServiceId = null;
+let allMasters = []; // Store all masters for filtering
 
 // Load categories on page load
 window.onload = function() {
@@ -75,40 +76,106 @@ console.error('Error loading cars:', error);
 
 async function loadMasters() {
     try {
-const response = await fetch(`${API_URL}/masters`);
-const data = await response.json();
-const container = document.getElementById('masters-container');
+        const response = await fetch(`${API_URL}/masters`);
+        const data = await response.json();
+        allMasters = data; // Store all masters
+        const container = document.getElementById('masters-container');
 
-if (data.length === 0) {
-    container.innerHTML = '<div class="loading">No masters available</div>';
-    return;
-}
+        if (data.length === 0) {
+            container.innerHTML = '<div class="loading">No masters available</div>';
+            return;
+        }
 
-container.innerHTML = '';
-data.forEach(master => {
-    const card = document.createElement('div');
-    card.className = 'master-card';
-    card.onclick = () => selectMaster(master.id);
-    card.innerHTML = `
-<div class="master-avatar">${master.name.charAt(0)}</div>
-<h3>${master.name}</h3>
-<div class="rating">⭐ ${master.rating || 'N/A'}</div>
-<p>${master.specialization || 'Expert'}</p>
-    `;
-    container.appendChild(card);
-});
+        renderMasters(data);
     } catch (error) {
-console.error('Error loading masters:', error);
-document.getElementById('masters-container').innerHTML = '<div class="error">Error loading masters</div>';
+        console.error('Error loading masters:', error);
+        document.getElementById('masters-container').innerHTML = '<div class="error">Error loading masters</div>';
     }
 }
 
+function renderMasters(masters) {
+    const container = document.getElementById('masters-container');
+    container.innerHTML = '';
+
+    masters.forEach(master => {
+        const card = document.createElement('div');
+        card.className = 'master-card';
+        card.onclick = () => selectMaster(master.id);
+        card.innerHTML = `
+            <div class="master-avatar">${master.name.charAt(0)}</div>
+            <h3>${master.name}</h3>
+            <div class="rating">⭐ ${master.rating || 'N/A'}</div>
+            <p class="specialization">${master.specialization || 'Expert'}</p>
+            <div class="master-location">📍 ${master.address || 'Location not specified'}</div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function filterMasters() {
+    const searchTerm = document.getElementById('master-search').value.toLowerCase();
+    const filteredMasters = allMasters.filter(master => 
+        master.name.toLowerCase().includes(searchTerm) ||
+        master.specialization.toLowerCase().includes(searchTerm) ||
+        (master.address && master.address.toLowerCase().includes(searchTerm))
+    );
+    renderMasters(filteredMasters);
+}
+
+function toggleMasterDropdown() {
+    const dropdown = document.getElementById('master-dropdown-body');
+    const header = document.querySelector('.dropdown-header');
+    const isOpen = dropdown.style.display === 'block';
+    
+    if (isOpen) {
+        dropdown.style.display = 'none';
+        header.classList.remove('open');
+    } else {
+        dropdown.style.display = 'block';
+        header.classList.add('open');
+        // Focus on search input when opening
+        setTimeout(() => {
+            document.getElementById('master-search').focus();
+        }, 100);
+    }
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    const dropdown = document.getElementById('master-dropdown');
+    if (!dropdown.contains(event.target)) {
+        document.getElementById('master-dropdown-body').style.display = 'none';
+    }
+});
+
 function selectMaster(masterId) {
     selectedMasterId = masterId;
+    const master = allMasters.find(m => m.id === masterId);
+    
     document.querySelectorAll('.master-card').forEach(card => {
-card.classList.remove('selected');
+        card.classList.remove('selected');
     });
     event.currentTarget.classList.add('selected');
+    
+    // Update selected master display
+    document.getElementById('selected-master').innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="master-avatar-small">${master.name.charAt(0)}</div>
+            <div>
+                <div style="font-weight: 600; color: var(--primary);">${master.name}</div>
+                <div style="font-size: 12px; color: #666;">
+                    ⭐ ${master.rating || 'N/A'} • ${master.specialization || 'Expert'}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Close dropdown
+    document.getElementById('master-dropdown-body').style.display = 'none';
+    
+    // Clear search
+    document.getElementById('master-search').value = '';
+    
     updateTimeSlots();
 }
 
@@ -148,23 +215,92 @@ async function calculatePrice() {
     const carId = document.getElementById('car').value;
 
     if (!serviceId || !carId) {
-showResults('Please select both service and car', 'error');
-return;
+        showResults('Please select both service and car', 'error');
+        return;
     }
 
     try {
-const response = await fetch(`${API_URL}/pricing/calculate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ service_id: parseInt(serviceId), car_id: parseInt(carId) })
-});
+        const response = await fetch(`${API_URL}/pricing/calculate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ service_id: parseInt(serviceId), car_id: parseInt(carId) })
+        });
 
-const data = await response.json();
-showResults(`Estimated Price: $${data.price}`, 'success');
+        if (!response.ok) {
+            throw new Error('Failed to calculate price');
+        }
+
+        const data = await response.json();
+        displayPriceCalculation(data);
     } catch (error) {
-showResults('Error calculating price', 'error');
-console.error(error);
+        showResults('Error calculating price: ' + error.message, 'error');
+        console.error(error);
     }
+}
+
+function displayPriceCalculation(data) {
+    const results = document.getElementById('results');
+    const content = document.getElementById('results-content');
+    
+    results.style.display = 'block';
+    
+    let html = `
+        <div class="price-calculation">
+            <div class="price-header">
+                <h3>💰 Расчет стоимости</h3>
+                <div class="final-price">${Math.round(data.final_price)} KZT</div>
+            </div>
+            
+            <div class="calculation-details">
+                <div class="service-info">
+                    <h4>${data.service_name}</h4>
+                    <div class="car-info">
+                        <span class="car-brand">${data.car_brand} ${data.car_model}</span>
+                        <span class="car-year">(${data.car_year} год, ${data.car_age} лет)</span>
+                        <span class="car-type">${data.car_type}</span>
+                    </div>
+                </div>
+                
+                <div class="price-breakdown">
+                    <h4>Детализация расчета:</h4>
+                    <div class="price-items">
+    `;
+    
+    data.price_details.forEach(detail => {
+        const amountClass = detail.is_addition ? 
+            (detail.amount > 0 ? 'price-addition' : 'price-discount') : 
+            'price-base';
+        
+        html += `
+            <div class="price-item ${amountClass}">
+                <span class="price-description">${detail.description}</span>
+                <span class="price-amount">
+                    ${detail.amount > 0 ? '+' : ''}${Math.round(detail.amount)} KZT
+                    ${detail.multiplier ? `(${detail.multiplier}x)` : ''}
+                </span>
+            </div>
+        `;
+    });
+    
+    html += `
+                    </div>
+                    
+                    <div class="price-summary">
+                        <div class="price-item price-total">
+                            <span class="price-description">Итого:</span>
+                            <span class="price-amount">${Math.round(data.final_price)} KZT</span>
+                        </div>
+                        
+                        <div class="price-range">
+                            <small>Диапазон: ${Math.round(data.min_price)} - ${Math.round(data.max_price)} KZT</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    content.innerHTML = html;
 }
 
 async function bookAppointment() {
@@ -206,29 +342,62 @@ console.error(error);
 
 async function loadMyAppointments() {
     try {
-const response = await fetch(`${API_URL}/appointments`);
-const data = await response.json();
-const container = document.getElementById('appointments-list');
+        const response = await fetch(`${API_URL}/appointments`);
+        const data = await response.json();
+        const container = document.getElementById('appointments-list');
 
-if (data.length === 0) {
-    container.innerHTML = '<div class="loading">No appointments found</div>';
-    return;
-}
+        if (data.length === 0) {
+            container.innerHTML = '<div class="loading">У вас пока нет заказов</div>';
+            return;
+        }
 
-container.innerHTML = '';
-data.forEach(apt => {
-    const div = document.createElement('div');
-    div.className = 'result-item';
-    div.innerHTML = `
-<h3>Appointment #${apt.id}</h3>
-<p><strong>Date:</strong> ${apt.date} at ${apt.time}</p>
-<p><strong>Status:</strong> ${apt.status}</p>
-<p><strong>Comment:</strong> ${apt.comment || 'None'}</p>
-    `;
-    container.appendChild(div);
-});
+        container.innerHTML = '';
+        data.forEach(apt => {
+            const div = document.createElement('div');
+            div.className = 'appointment-card';
+            
+            // Format date beautifully
+            let dateStr = 'Не указана';
+            let timeStr = 'Не указано';
+            
+            if (apt.date) {
+                try {
+                    const date = new Date(apt.date);
+                    const months = ['Января', 'Февраля', 'Марта', 'Апреля', 'Мая', 'Июня', 
+                                  'Июля', 'Августа', 'Сентября', 'Октября', 'Ноября', 'Декабря'];
+                    dateStr = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+                } catch (e) {
+                    dateStr = apt.date;
+                }
+            }
+            
+            if (apt.time) {
+                try {
+                    const time = new Date(apt.time);
+                    timeStr = `${time.getHours().toString().padStart(2, '0')}:${time.getMinutes().toString().padStart(2, '0')}`;
+                } catch (e) {
+                    timeStr = apt.time;
+                }
+            }
+            
+            div.innerHTML = `
+                <div class="appointment-header">
+                    <h3>Заказ #${apt.id}</h3>
+                    <span class="status status-${apt.status || 'pending'}">${(apt.status || 'pending')}</span>
+                </div>
+                <div class="appointment-body">
+                    <p><strong>📅 Дата:</strong> ${dateStr}</p>
+                    <p><strong>🕐 Время:</strong> ${timeStr}</p>
+                    <p><strong>🔧 Услуга:</strong> ${apt.service_name || 'Не указана'}</p>
+                    <p><strong>👨‍🔧 Мастер:</strong> ${apt.master_name || 'Не назначен'}</p>
+                    ${apt.comment ? `<p><strong>💬 Комментарий:</strong> ${apt.comment}</p>` : ''}
+                </div>
+            `;
+            container.appendChild(div);
+        });
     } catch (error) {
-console.error('Error loading appointments:', error);
+        console.error('Error loading appointments:', error);
+        document.getElementById('appointments-list').innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки заказов</p>';
     }
 }
 

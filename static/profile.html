@@ -8,12 +8,14 @@
 </head>
 <body>
     <div class="container">
-        <header style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <h1>✨ BEEP - Личный кабинет</h1>
-                <p class="tagline">Управляйте своим профилем и заказами</p>
+        <header>
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div style="flex: 1;">
+                    <h1>✨ BEEP</h1>
+                    <p class="tagline">Личный кабинет</p>
+                </div>
+                <button onclick="window.location.href='/'" style="padding: 12px 24px; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 25px; font-weight: 600; font-size: 14px; cursor: pointer; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);">На главную</button>
             </div>
-            <button onclick="window.location.href='/'" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">На главную</button>
         </header>
 
         <!-- Вкладки -->
@@ -29,24 +31,54 @@
             <div class="main-content">
             <!-- User Profile Card -->
             <div class="card">
-                <h2>👤 Мой профиль</h2>
-                <div class="profile-info">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>👤 Мой профиль</h2>
+                    <button id="editProfileBtn" onclick="toggleEditMode()" style="padding: 8px 16px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">Редактировать</button>
+                </div>
+                
+                <!-- View Mode -->
+                <div id="profileViewMode" class="profile-info">
                     <div class="info-item">
                         <label>Имя:</label>
                         <span id="userName">-</span>
+                        <button class="edit-field-btn" onclick="editField('name')" title="Редактировать имя">✏️</button>
                     </div>
                     <div class="info-item">
                         <label>Email:</label>
                         <span id="userEmail">-</span>
+                        <button class="edit-field-btn" onclick="editField('email')" title="Редактировать email">✏️</button>
                     </div>
                     <div class="info-item">
                         <label>Телефон:</label>
                         <span id="userPhone">-</span>
+                        <button class="edit-field-btn" onclick="editField('phone')" title="Редактировать телефон">✏️</button>
                     </div>
                     <div class="info-item">
                         <label>Дата регистрации:</label>
                         <span id="userCreated">-</span>
                     </div>
+                </div>
+                
+                <!-- Edit Mode -->
+                <div id="profileEditMode" style="display: none;">
+                    <form id="profileEditForm" onsubmit="saveProfile(event)">
+                        <div class="form-group">
+                            <label for="editName">Имя:</label>
+                            <input type="text" id="editName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editEmail">Email:</label>
+                            <input type="email" id="editEmail" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editPhone">Телефон:</label>
+                            <input type="tel" id="editPhone">
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button type="submit" style="flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Сохранить</button>
+                            <button type="button" onclick="cancelEdit()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Отмена</button>
+                        </div>
+                    </form>
                 </div>
             </div>
 

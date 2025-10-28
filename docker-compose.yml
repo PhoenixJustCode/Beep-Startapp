@@ -5,7 +5,7 @@ services:
     image: postgres:15-alpine
     environment:
       POSTGRES_USER: beep
-      POSTGRES_PASSWORD: beep123
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: beep
     ports:
       - "5432:5432"
@@ -22,7 +22,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      DATABASE_URL: postgres://beep:beep123@postgres:5432/beep?sslmode=disable
+      DATABASE_URL: postgres://beep:postgres@postgres:5432/beep?sslmode=disable
       PORT: 8080
     depends_on:
       postgres:

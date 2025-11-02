@@ -208,7 +208,7 @@
                             <input type="text" id="masterName" required style="flex: 1; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;">
                         </div>
                         <div class="info-item">
-                            <label>Email:</label>
+                            <label> Email:</label>
                             <input type="email" id="masterEmail" required style="flex: 1; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;">
                         </div>
                         <div class="info-item">
@@ -254,7 +254,7 @@
                     
                     <div class="profile-info">
                         <div class="info-item">
-                            <label>Email:</label>
+                            <label>Work -Email:</label>
                             <span id="displayMasterEmail">-</span>
                         </div>
                         <div class="info-item">
@@ -273,6 +273,15 @@
                     
                     <div style="text-align: center; margin-top: 20px;">
                         <button onclick="showMasterEditForm()" style="padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600;">Редактировать профиль</button>
+                    </div>
+                </div>
+
+                <!-- Schedule Card -->
+                <div class="card">
+                    <h2 style="margin-bottom: 20px;">⏰ Расписание работы</h2>
+                    <button onclick="showScheduleModal()" style="margin-bottom: 20px; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Настроить расписание</button>
+                    <div id="schedulePreview" style="color: #64748b;">
+                        <!-- Schedule will be loaded here -->
                     </div>
                 </div>
 
@@ -339,6 +348,35 @@
                    <button onclick="deleteMasterProfile()" style="margin-top: 20px; padding: 10px 20px; background: #e74c3c; color: white; border: none; border-radius: 8px; cursor: pointer;">Удалить профиль мастера</button>
                </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal: Schedule -->
+    <div id="scheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 15px; padding: 30px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto;">
+            <h2 style="margin-bottom: 20px;">Настройка расписания работы</h2>
+            <p style="color: #64748b; margin-bottom: 20px;">Установите рабочее время. Оно будет применяться для всех дней недели</p>
+            <form id="scheduleForm" onsubmit="saveSchedule(event)">
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; color: #334155; font-weight: 600;">Время начала работы:</label>
+                    <input type="time" id="schedule_start_time" value="08:00" required
+                           style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
+                    <p style="color: #64748b; font-size: 14px; margin-top: 5px;">Например: 08:00</p>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; color: #334155; font-weight: 600;">Время окончания работы:</label>
+                    <input type="time" id="schedule_end_time" value="19:00" required
+                           style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
+                    <p style="color: #64748b; font-size: 14px; margin-top: 5px;">Например: 19:00</p>
+                </div>
+                <p style="color: #64748b; font-size: 14px; margin-top: 15px; padding: 10px; background: #f0f9ff; border-radius: 8px;">
+                    <strong>Примечание:</strong> Доступное время для записи будет формироваться каждый час в указанном диапазоне (например, с 08:00 до 19:00: 08:00, 09:00, 10:00... 19:00)
+                </p>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" style="flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Сохранить</button>
+                    <button type="button" onclick="closeScheduleModal()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Отмена</button>
+                </div>
+            </form>
         </div>
     </div>
 

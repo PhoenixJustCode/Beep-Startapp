@@ -386,26 +386,40 @@ async function updateTimeSlots() {
     const date = document.getElementById('appointment-date').value;
     if (!date) return;
 
+    const select = document.getElementById('appointment-time');
+    select.innerHTML = '<option value="">Загрузка...</option>';
+    select.disabled = true;
+
     try {
-const response = await fetch(`${API_URL}/masters/${selectedMasterId}/available-slots?date=${date}`);
-const data = await response.json();
-const select = document.getElementById('appointment-time');
+        const response = await fetch(`${API_URL}/masters/${selectedMasterId}/available-slots?date=${date}`);
+        
+        if (!response.ok) {
+            select.innerHTML = '<option value="">Ошибка загрузки времени</option>';
+            select.disabled = false;
+            return;
+        }
+        
+        const data = await response.json();
         select.innerHTML = '<option value="">Выберите время...</option>';
 
-if (data.slots && data.slots.length > 0) {
-    data.slots.forEach(slot => {
-const option = document.createElement('option');
-option.value = slot;
-option.textContent = slot;
-select.appendChild(option);
-    });
-} else {
-    const option = document.createElement('option');
-    option.textContent = 'Нет доступного времени';
-    select.appendChild(option);
-}
+        if (data.slots && data.slots.length > 0) {
+            data.slots.forEach(slot => {
+                const option = document.createElement('option');
+                option.value = slot;
+                option.textContent = slot;
+                select.appendChild(option);
+            });
+        } else {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'Нет доступного времени';
+            option.disabled = true;
+            select.appendChild(option);
+        }
+        select.disabled = false;
     } catch (error) {
-console.error('Ошибка загрузки времени:', error);
+        select.innerHTML = '<option value="">Ошибка загрузки времени</option>';
+        select.disabled = false;
     }
 }
 

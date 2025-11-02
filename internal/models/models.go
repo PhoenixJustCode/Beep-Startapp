@@ -216,6 +216,16 @@ type Guarantee struct {
 	CreatedAt     time.Time `json:"created_at" db:"created_at"`
 }
 
+// GuaranteeWithDetails represents a guarantee with appointment and car details
+type GuaranteeWithDetails struct {
+	Guarantee
+	AppointmentDate   string `json:"appointment_date"`
+	AppointmentTime   string `json:"appointment_time"`
+	AppointmentStatus string `json:"appointment_status"`
+	CarName           string `json:"car_name"`
+	CarYear           int    `json:"car_year"`
+}
+
 // Notification represents a notification for a user
 type Notification struct {
 	ID        int       `json:"id" db:"id"`

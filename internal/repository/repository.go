@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -357,7 +358,7 @@ func (r *Repository) GetMasterByID(id int) (*models.Master, error) {
 }
 
 func (r *Repository) GetMasterSchedule(masterID int) ([]models.MasterSchedule, error) {
-	rows, err := r.db.Query("SELECT id, master_id, day_of_week, start_time, end_time, is_active, created_at FROM master_schedule WHERE master_id = $1 AND is_active = true", masterID)
+	rows, err := r.db.Query("SELECT id, master_id, day_of_week, start_time, end_time, is_active, created_at FROM master_schedule WHERE master_id = $1 ORDER BY day_of_week ASC", masterID)
 	if err != nil {
 		return nil, err
 	}
@@ -366,12 +367,44 @@ func (r *Repository) GetMasterSchedule(masterID int) ([]models.MasterSchedule, e
 	var schedules []models.MasterSchedule
 	for rows.Next() {
 		var schedule models.MasterSchedule
-		if err := rows.Scan(&schedule.ID, &schedule.MasterID, &schedule.DayOfWeek, &schedule.StartTime, &schedule.EndTime, &schedule.IsActive, &schedule.CreatedAt); err != nil {
+		// PostgreSQL TIME type is returned as time.Time with zero date, need to extract time part
+		var startTime, endTime time.Time
+		if err := rows.Scan(&schedule.ID, &schedule.MasterID, &schedule.DayOfWeek, &startTime, &endTime, &schedule.IsActive, &schedule.CreatedAt); err != nil {
 			return nil, err
 		}
+
+		// Format time to HH:MM:SS and extract HH:MM
+		schedule.StartTime = startTime.Format("15:04:05")[:5]
+		schedule.EndTime = endTime.Format("15:04:05")[:5]
+
 		schedules = append(schedules, schedule)
 	}
 	return schedules, nil
+}
+
+// UpdateMasterSchedule updates or creates schedule entries for a master
+func (r *Repository) UpdateMasterSchedule(masterID int, schedules []models.MasterSchedule) error {
+	// Delete existing schedules for this master
+	_, err := r.db.Exec("DELETE FROM master_schedule WHERE master_id = $1", masterID)
+	if err != nil {
+		return err
+	}
+
+	// Insert new schedules
+	for _, schedule := range schedules {
+		startTime := strings.TrimSpace(schedule.StartTime)
+		endTime := strings.TrimSpace(schedule.EndTime)
+
+		_, err := r.db.Exec(`
+			INSERT INTO master_schedule (master_id, day_of_week, start_time, end_time, is_active, created_at)
+			VALUES ($1, $2, $3, $4, $5, NOW())
+		`, masterID, schedule.DayOfWeek, startTime, endTime, schedule.IsActive)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Get available time slots for a master on a specific date
@@ -380,14 +413,25 @@ func (r *Repository) GetAvailableSlots(masterID int, date time.Time) ([]string, 
 	dayOfWeek := int(date.Weekday())
 	dayOfWeek = (dayOfWeek + 6) % 7 // PostgreSQL uses 0=Monday, 6=Sunday
 
-	var startTime, endTime string
+	var startTimeDB, endTimeDB time.Time
 	err := r.db.QueryRow("SELECT start_time, end_time FROM master_schedule WHERE master_id = $1 AND day_of_week = $2 AND is_active = true", masterID, dayOfWeek).
-		Scan(&startTime, &endTime)
+		Scan(&startTimeDB, &endTimeDB)
+
+	// Default schedule if not found
+	var startTime, endTime string
 	if err == sql.ErrNoRows {
-		return []string{}, nil
-	}
-	if err != nil {
+		// No schedule found for this day, use default 08:00 - 19:00
+		fmt.Printf("No schedule found for master %d on day %d, using default 08:00-19:00\n", masterID, dayOfWeek)
+		startTime = "08:00"
+		endTime = "19:00"
+	} else if err != nil {
+		fmt.Printf("Error getting schedule for master %d on day %d: %v\n", masterID, dayOfWeek, err)
 		return nil, err
+	} else {
+		// Format time to HH:MM
+		startTime = startTimeDB.Format("15:04:05")[:5]
+		endTime = endTimeDB.Format("15:04:05")[:5]
+		fmt.Printf("Found schedule for master %d on day %d: %s - %s\n", masterID, dayOfWeek, startTime, endTime)
 	}
 
 	// Get existing appointments for that date
@@ -407,15 +451,40 @@ func (r *Repository) GetAvailableSlots(masterID int, date time.Time) ([]string, 
 		}
 	}
 
-	// Generate available time slots (every hour from 8:00 to 18:00)
+	// Parse start and end times
+	startParts := strings.Split(startTime, ":")
+	endParts := strings.Split(endTime, ":")
+	if len(startParts) < 2 || len(endParts) < 2 {
+		return []string{}, nil
+	}
+
+	var startHour, startMin int
+	var endHour, endMin int
+	fmt.Sscanf(startTime, "%d:%d", &startHour, &startMin)
+	fmt.Sscanf(endTime, "%d:%d", &endHour, &endMin)
+
+	// Generate available time slots (every hour from start to end)
 	slots := []string{}
-	for hour := 8; hour <= 18; hour++ {
-		slot := fmt.Sprintf("%02d:00", hour)
+
+	// Calculate total minutes from start to end
+	startTotalMinutes := startHour*60 + startMin
+	endTotalMinutes := endHour*60 + endMin
+
+	fmt.Printf("Generating slots from %d mins to %d mins (every 60 mins)\n", startTotalMinutes, endTotalMinutes)
+
+	for currentMin := startTotalMinutes; currentMin < endTotalMinutes; currentMin += 60 {
+		hour := currentMin / 60
+		min := currentMin % 60
+		slot := fmt.Sprintf("%02d:%02d", hour, min)
 		if !bookedTimes[slot] {
 			slots = append(slots, slot)
+			fmt.Printf("Added slot: %s\n", slot)
+		} else {
+			fmt.Printf("Slot %s is already booked\n", slot)
 		}
 	}
 
+	fmt.Printf("Total available slots for master %d on %s: %d slots\n", masterID, date.Format("2006-01-02"), len(slots))
 	return slots, nil
 }
 
@@ -463,7 +532,11 @@ func (r *Repository) GetUserAppointments(userID int) ([]models.AppointmentWithDe
 	return appointments, nil
 }
 
-func (r *Repository) UpdateAppointment(appointmentID int, comment string) error {
+func (r *Repository) UpdateAppointment(appointmentID int, comment string, status string) error {
+	if status != "" {
+		_, err := r.db.Exec("UPDATE appointments SET comment = $1, status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3", comment, status, appointmentID)
+		return err
+	}
 	_, err := r.db.Exec("UPDATE appointments SET comment = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", comment, appointmentID)
 	return err
 }
@@ -1131,26 +1204,56 @@ func (r *Repository) DeleteUserCar(carID, userID int) error {
 
 // Guarantees Methods
 
-// GetUserGuarantees gets all active guarantees for a user (not expired)
-func (r *Repository) GetUserGuarantees(userID int) ([]models.Guarantee, error) {
+// GetUserGuarantees gets all active guarantees for a user (not expired) with appointment details
+func (r *Repository) GetUserGuarantees(userID int) ([]models.GuaranteeWithDetails, error) {
 	rows, err := r.db.Query(`
-		SELECT id, user_id, appointment_id, service_name, master_name, service_date, expiry_date, created_at
-		FROM guarantees
-		WHERE user_id = $1 AND expiry_date >= CURRENT_DATE
-		ORDER BY expiry_date ASC
+		SELECT 
+			g.id, g.user_id, g.appointment_id, g.service_name, g.master_name, 
+			g.service_date, g.expiry_date, g.created_at,
+			a.date as appointment_date, a.time as appointment_time, a.status as appointment_status,
+			COALESCE(uc.name, 'Не указана') as car_name, uc.year as car_year
+		FROM guarantees g
+		LEFT JOIN appointments a ON g.appointment_id = a.id
+		LEFT JOIN user_cars uc ON a.user_id = uc.user_id
+		WHERE g.user_id = $1 AND g.expiry_date >= CURRENT_DATE
+		ORDER BY g.expiry_date ASC
 	`, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var guarantees []models.Guarantee
+	var guarantees []models.GuaranteeWithDetails
 	for rows.Next() {
-		var g models.Guarantee
+		var g models.GuaranteeWithDetails
+		var appointmentDate, appointmentTime sql.NullString
+		var appointmentStatus sql.NullString
+		var carName sql.NullString
+		var carYear sql.NullInt64
+
 		if err := rows.Scan(&g.ID, &g.UserID, &g.AppointmentID, &g.ServiceName, &g.MasterName,
-			&g.ServiceDate, &g.ExpiryDate, &g.CreatedAt); err != nil {
+			&g.ServiceDate, &g.ExpiryDate, &g.CreatedAt,
+			&appointmentDate, &appointmentTime, &appointmentStatus,
+			&carName, &carYear); err != nil {
 			return nil, err
 		}
+
+		if appointmentDate.Valid {
+			g.AppointmentDate = appointmentDate.String
+		}
+		if appointmentTime.Valid {
+			g.AppointmentTime = appointmentTime.String
+		}
+		if appointmentStatus.Valid {
+			g.AppointmentStatus = appointmentStatus.String
+		}
+		if carName.Valid {
+			g.CarName = carName.String
+		}
+		if carYear.Valid {
+			g.CarYear = int(carYear.Int64)
+		}
+
 		guarantees = append(guarantees, g)
 	}
 	return guarantees, nil
@@ -1223,14 +1326,19 @@ func (r *Repository) MarkNotificationRead(notificationID, userID int) error {
 }
 
 // GetMasterAppointmentsForNotifications gets appointments for a master (for notifications)
+// Returns appointments with customer information (name, phone, email) and car info
 func (r *Repository) GetMasterAppointmentsForNotifications(masterID int) ([]models.AppointmentWithDetails, error) {
 	rows, err := r.db.Query(`
-		SELECT a.id, a.user_id, a.master_id, a.service_id, a.date, a.time, a.status, a.comment,
-		       a.created_at, a.updated_at, s.name as service_name, u.name as master_name
+		SELECT 
+			a.id, a.user_id, a.master_id, a.service_id, a.date, a.time, a.status, a.comment,
+			a.created_at, a.updated_at, s.name as service_name, 
+			u.name as customer_name, u.email as customer_email, u.phone as customer_phone,
+			COALESCE(uc.name, 'Не указана') as car_name, uc.year as car_year
 		FROM appointments a
 		JOIN services s ON a.service_id = s.id
 		JOIN users u ON a.user_id = u.id
-		WHERE a.master_id = $1 AND a.status IN ('pending', 'confirmed')
+		LEFT JOIN user_cars uc ON a.user_id = uc.user_id
+		WHERE a.master_id = $1
 		ORDER BY a.date DESC, a.time DESC
 	`, masterID)
 	if err != nil {
@@ -1241,9 +1349,39 @@ func (r *Repository) GetMasterAppointmentsForNotifications(masterID int) ([]mode
 	var appointments []models.AppointmentWithDetails
 	for rows.Next() {
 		var apt models.AppointmentWithDetails
+		var customerName, customerEmail, customerPhone, carName sql.NullString
+		var carYear sql.NullInt64
 		if err := rows.Scan(&apt.ID, &apt.UserID, &apt.MasterID, &apt.ServiceID, &apt.Date, &apt.Time,
-			&apt.Status, &apt.Comment, &apt.CreatedAt, &apt.UpdatedAt, &apt.ServiceName, &apt.MasterName); err != nil {
+			&apt.Status, &apt.Comment, &apt.CreatedAt, &apt.UpdatedAt, &apt.ServiceName,
+			&customerName, &customerEmail, &customerPhone, &carName, &carYear); err != nil {
 			return nil, err
+		}
+		// Use MasterName field to store customer name for master notifications
+		if customerName.Valid {
+			apt.MasterName = customerName.String
+		}
+		// Store customer contact info and car info in Comment field
+		contactParts := []string{}
+		if customerPhone.Valid {
+			contactParts = append(contactParts, "Телефон: "+customerPhone.String)
+		}
+		if customerEmail.Valid {
+			contactParts = append(contactParts, "Email: "+customerEmail.String)
+		}
+		if carName.Valid {
+			carInfo := "Машина: " + carName.String
+			if carYear.Valid {
+				carInfo += fmt.Sprintf(" (%d)", carYear.Int64)
+			}
+			contactParts = append(contactParts, carInfo)
+		}
+		if len(contactParts) > 0 {
+			infoText := strings.Join(contactParts, "\n")
+			if apt.Comment != "" {
+				apt.Comment = infoText + "\n\nКомментарий клиента: " + apt.Comment
+			} else {
+				apt.Comment = infoText
+			}
 		}
 		appointments = append(appointments, apt)
 	}

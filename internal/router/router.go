@@ -53,6 +53,8 @@ func SetupRouter(h *handlers.Handlers) *gin.Engine {
 			master.PUT("/profile", h.UpdateMasterProfile)
 			master.DELETE("/profile", h.DeleteMasterProfile)
 			master.POST("/photo", h.UploadMasterPhoto)
+			master.GET("/schedule", h.GetMasterScheduleByUser)
+			master.PUT("/schedule", h.UpdateMasterSchedule)
 			master.GET("/works", h.GetMasterWorks)
 			master.POST("/works", h.CreateMasterWork)
 			master.GET("/works/:id", h.GetMasterWork)

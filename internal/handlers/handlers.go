@@ -274,6 +274,81 @@ func (h *Handlers) GetMasterSchedule(c *gin.Context) {
 	c.JSON(http.StatusOK, schedules)
 }
 
+// GetMasterScheduleByUser gets master's schedule by user ID (for master's own schedule)
+func (h *Handlers) GetMasterScheduleByUser(c *gin.Context) {
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	master, err := h.repo.GetMasterByUserID(userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusOK, []models.MasterSchedule{})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get master profile"})
+		return
+	}
+
+	schedules, err := h.repo.GetMasterSchedule(master.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if schedules == nil {
+		schedules = []models.MasterSchedule{}
+	}
+
+	c.JSON(http.StatusOK, schedules)
+}
+
+// UpdateMasterSchedule updates master's working schedule
+func (h *Handlers) UpdateMasterSchedule(c *gin.Context) {
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	master, err := h.repo.GetMasterByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Master not found"})
+		return
+	}
+
+	type Request struct {
+		Schedules []models.MasterSchedule `json:"schedules" binding:"required"`
+	}
+
+	var req Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate schedules
+	for _, schedule := range req.Schedules {
+		if schedule.DayOfWeek < 0 || schedule.DayOfWeek > 6 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid day_of_week. Must be between 0 and 6"})
+			return
+		}
+		if schedule.StartTime == "" || schedule.EndTime == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Start time and end time are required"})
+			return
+		}
+	}
+
+	if err := h.repo.UpdateMasterSchedule(master.ID, req.Schedules); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Schedule updated successfully"})
+}
+
 // Get available time slots for a master on a specific date
 func (h *Handlers) GetAvailableSlots(c *gin.Context) {
 	masterID, err := strconv.Atoi(c.Param("id"))
@@ -337,6 +412,56 @@ func (h *Handlers) CreateAppointment(c *gin.Context) {
 		return
 	}
 
+	// Automatically create 14-day guarantee for the appointment
+	// Get service and master info
+	service, err := h.repo.GetServiceByID(req.ServiceID)
+	if err != nil {
+		log.Printf("Warning: Failed to get service for guarantee: %v", err)
+		service = nil
+	}
+
+	master, err := h.repo.GetMasterByID(req.MasterID)
+	if err != nil {
+		log.Printf("Warning: Failed to get master for guarantee: %v", err)
+		master = nil
+	}
+
+	// Create guarantee if we have both service and master
+	if service != nil && master != nil {
+		_, err := h.repo.CreateGuarantee(userID, appointment.ID, service.Name, master.Name, date)
+		if err != nil {
+			log.Printf("Warning: Failed to create guarantee: %v", err)
+		}
+	}
+
+	// Create notifications for user and master
+	user, err := h.repo.GetUserByID(userID)
+	if err != nil {
+		log.Printf("Warning: Failed to get user for notification: %v", err)
+	}
+
+	// Create notification for user about appointment status
+	if user != nil && master != nil && service != nil {
+		userNotifTitle := "Запись создана"
+		userNotifMsg := fmt.Sprintf("Вы записаны к мастеру %s на услугу %s. Дата: %s, Время: %s. Статус: Ожидание подтверждения",
+			master.Name, service.Name, date.Format("02.01.2006"), req.Time)
+		_, err := h.repo.CreateNotification(userID, "appointment_created", userNotifTitle, userNotifMsg, appointment.ID)
+		if err != nil {
+			log.Printf("Warning: Failed to create user notification: %v", err)
+		}
+	}
+
+	// Create notification for master about new appointment
+	if master != nil && master.UserID > 0 && user != nil && service != nil {
+		masterNotifTitle := "Новая запись"
+		masterNotifMsg := fmt.Sprintf("Клиент %s записался к вам на услугу %s. Дата: %s, Время: %s. Телефон: %s",
+			user.Name, service.Name, date.Format("02.01.2006"), req.Time, user.Phone)
+		_, err := h.repo.CreateNotification(master.UserID, "new_appointment", masterNotifTitle, masterNotifMsg, appointment.ID)
+		if err != nil {
+			log.Printf("Warning: Failed to create master notification: %v", err)
+		}
+	}
+
 	c.JSON(http.StatusCreated, appointment)
 }
 
@@ -383,6 +508,7 @@ func (h *Handlers) UpdateAppointment(c *gin.Context) {
 
 	type Request struct {
 		Comment string `json:"comment"`
+		Status  string `json:"status"`
 	}
 
 	var req Request
@@ -391,9 +517,66 @@ func (h *Handlers) UpdateAppointment(c *gin.Context) {
 		return
 	}
 
-	if err := h.repo.UpdateAppointment(id, req.Comment); err != nil {
+	// Get old appointment to check status change
+	oldAppointment, err := h.repo.GetAppointmentByID(id)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	if err := h.repo.UpdateAppointment(id, req.Comment, req.Status); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Create notifications if status changed
+	if req.Status != "" && req.Status != oldAppointment.Status {
+		// Get appointment details for notification
+		appointments, err := h.repo.GetUserAppointments(oldAppointment.UserID)
+		var appointmentDetails *models.AppointmentWithDetails
+		if err == nil {
+			for _, apt := range appointments {
+				if apt.ID == id {
+					appointmentDetails = &apt
+					break
+				}
+			}
+		}
+
+		// Create notification for user about status change
+		var userNotifTitle, userNotifMsg string
+		masterName := "мастеру"
+		serviceName := "услугу"
+
+		if appointmentDetails != nil {
+			masterName = appointmentDetails.MasterName
+			serviceName = appointmentDetails.ServiceName
+		}
+
+		switch req.Status {
+		case "confirmed":
+			userNotifTitle = "Запись подтверждена"
+			userNotifMsg = fmt.Sprintf("Ваша запись к мастеру %s на услугу %s подтверждена. Дата: %s, Время: %s",
+				masterName, serviceName,
+				oldAppointment.Date.Format("02.01.2006"), oldAppointment.Time)
+		case "completed":
+			userNotifTitle = "Услуга выполнена"
+			userNotifMsg = fmt.Sprintf("Услуга %s у мастера %s выполнена. Дата: %s",
+				serviceName, masterName,
+				oldAppointment.Date.Format("02.01.2006"))
+		case "cancelled":
+			userNotifTitle = "Запись отменена"
+			userNotifMsg = fmt.Sprintf("Ваша запись к мастеру %s на услугу %s отменена. Дата: %s, Время: %s",
+				masterName, serviceName,
+				oldAppointment.Date.Format("02.01.2006"), oldAppointment.Time)
+		}
+
+		if userNotifTitle != "" {
+			_, err := h.repo.CreateNotification(oldAppointment.UserID, "appointment_status_changed", userNotifTitle, userNotifMsg, id)
+			if err != nil {
+				log.Printf("Warning: Failed to create user notification: %v", err)
+			}
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Appointment updated successfully"})

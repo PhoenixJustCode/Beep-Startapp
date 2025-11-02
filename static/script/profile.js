@@ -585,6 +585,7 @@ async function loadMasterProfile() {
         loadMasterReviews();
         loadMasterVerificationStatus(master.id);
         loadMasterNotifications();
+        loadMasterSchedule();
         
     } catch (error) {
         console.error('Ошибка загрузки профиля мастера:', error);
@@ -1763,8 +1764,15 @@ async function loadUserGuarantees() {
         const token = localStorage.getItem('token');
         if (!token) return;
         
+        // Format token for backend
+        let authToken = token;
+        if (token && !token.includes('mock-jwt-token-') && token.includes('@')) {
+            authToken = `mock-jwt-token-${token}`;
+        }
+        authToken = authToken.replace(/^Bearer\s+/i, '');
+        
         const response = await fetch(`${API_URL}/user/guarantees`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${authToken}` }
         });
         
         if (!response.ok) {
@@ -1774,30 +1782,61 @@ async function loadUserGuarantees() {
         const guarantees = await response.json();
         const container = document.getElementById('userGuarantees');
         
-        if (guarantees.length === 0) {
-            container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">У вас пока нет активных гарантий</p>';
+        if (!guarantees || guarantees.length === 0) {
+            container.innerHTML = '<p style="color: #64748b; text-align: center; padding: 20px;">У вас пока нет активных гарантий</p>';
             return;
         }
         
-        container.innerHTML = '';
+        let html = '';
         guarantees.forEach(guarantee => {
-            const guaranteeDiv = document.createElement('div');
-            guaranteeDiv.style.cssText = 'background: #f0f9ff; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-left: 4px solid var(--primary);';
+            const expiryDate = new Date(guarantee.expiry_date);
+            const serviceDate = new Date(guarantee.service_date);
+            const now = new Date();
+            const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+            const isExpired = daysLeft < 0;
+            const isExpiringSoon = daysLeft >= 0 && daysLeft <= 3;
             
-            const serviceDate = new Date(guarantee.service_date).toLocaleDateString('ru-RU');
-            const expiryDate = new Date(guarantee.expiry_date).toLocaleDateString('ru-RU');
+            const expiryStr = expiryDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+            const serviceDateStr = serviceDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+            const appointmentDateStr = guarantee.appointment_date ? new Date(guarantee.appointment_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
             
-            guaranteeDiv.innerHTML = `
-                <h3 style="margin: 0 0 10px 0; color: var(--primary);">${guarantee.service_name}</h3>
-                ${guarantee.master_name ? `<p style="margin: 5px 0; color: #666;">Мастер: ${guarantee.master_name}</p>` : ''}
-                <p style="margin: 5px 0; color: #666;">Дата услуги: ${serviceDate}</p>
-                <p style="margin: 5px 0; color: #10b981; font-weight: 600;">Гарантия действует до: ${expiryDate}</p>
+            const bgColor = isExpired ? '#fee2e2' : isExpiringSoon ? '#fef3c7' : '#d1fae5';
+            const borderColor = isExpired ? '#ef4444' : isExpiringSoon ? '#f59e0b' : '#10b981';
+            const textColor = isExpired ? '#991b1b' : isExpiringSoon ? '#92400e' : '#065f46';
+            
+            html += `
+                <div style="padding: 15px; margin-bottom: 15px; background: ${bgColor}; border-radius: 10px; border-left: 4px solid ${borderColor};">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                        <h3 style="margin: 0; color: ${textColor}; font-size: 18px;">${guarantee.service_name || 'Услуга'}</h3>
+                        ${isExpired ? '<span style="color: #ef4444; font-weight: 600; font-size: 14px;">Истекла</span>' : 
+                          isExpiringSoon ? '<span style="color: #f59e0b; font-weight: 600; font-size: 14px;">Скоро истечет</span>' : 
+                          '<span style="color: #10b981; font-weight: 600; font-size: 14px;">Активна</span>'}
+                    </div>
+                    <div style="color: ${textColor}; font-size: 14px; line-height: 1.8;">
+                        <p style="margin: 5px 0;"><strong>🔧 Услуга:</strong> ${guarantee.service_name || 'Не указана'}</p>
+                        <p style="margin: 5px 0;"><strong>👨‍🔧 Мастер:</strong> ${guarantee.master_name || 'Не указан'}</p>
+                        ${guarantee.car_name ? `<p style="margin: 5px 0;"><strong>🚗 Машина:</strong> ${guarantee.car_name}${guarantee.car_year ? ` (${guarantee.car_year})` : ''}</p>` : ''}
+                        ${appointmentDateStr ? `<p style="margin: 5px 0;"><strong>📅 Дата записи:</strong> ${appointmentDateStr}</p>` : ''}
+                        ${guarantee.appointment_time ? `<p style="margin: 5px 0;"><strong>⏰ Время:</strong> ${guarantee.appointment_time}</p>` : ''}
+                        <p style="margin: 5px 0;"><strong>📆 Дата услуги:</strong> ${serviceDateStr}</p>
+                        <p style="margin: 5px 0;"><strong>✅ Гарантия действует до:</strong> ${expiryStr}</p>
+                        ${!isExpired ? `<p style="margin: 5px 0; font-weight: 600; color: ${textColor};">
+                            ${daysLeft === 0 ? '⚠️ Последний день действия гарантии' : 
+                              daysLeft === 1 ? '⚠️ Остался 1 день' : 
+                              `⏳ Осталось дней: ${daysLeft}`}
+                        </p>` : '<p style="margin: 5px 0; font-weight: 600; color: #ef4444;">❌ Гарантия истекла</p>'}
+                    </div>
+                </div>
             `;
-            container.appendChild(guaranteeDiv);
         });
+        
+        container.innerHTML = html;
     } catch (error) {
         console.error('Ошибка загрузки гарантий:', error);
-        document.getElementById('userGuarantees').innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки гарантий</p>';
+        const container = document.getElementById('userGuarantees');
+        if (container) {
+            container.innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки гарантий</p>';
+        }
     }
 }
 
@@ -1807,8 +1846,15 @@ async function loadUserNotifications() {
         const token = localStorage.getItem('token');
         if (!token) return;
         
+        // Format token for backend
+        let authToken = token;
+        if (token && !token.includes('mock-jwt-token-') && token.includes('@')) {
+            authToken = `mock-jwt-token-${token}`;
+        }
+        authToken = authToken.replace(/^Bearer\s+/i, '');
+        
         const response = await fetch(`${API_URL}/user/notifications`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${authToken}` }
         });
         
         if (!response.ok) {
@@ -1818,37 +1864,65 @@ async function loadUserNotifications() {
         const notifications = await response.json();
         const container = document.getElementById('userNotifications');
         
-        if (notifications.length === 0) {
-            container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">У вас пока нет уведомлений</p>';
+        if (!notifications || notifications.length === 0) {
+            container.innerHTML = '<p style="color: #64748b; text-align: center; padding: 20px;">У вас пока нет уведомлений</p>';
             return;
         }
         
-        container.innerHTML = '';
+        let html = '';
         notifications.forEach(notification => {
-            const notifDiv = document.createElement('div');
-            notifDiv.style.cssText = `background: ${notification.is_read ? '#f8f9fa' : '#e0f2fe'}; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-left: 4px solid ${notification.is_read ? '#94a3b8' : 'var(--primary)'};`;
+            const date = new Date(notification.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            const bgColor = notification.is_read ? '#f8f9fa' : '#e0f2fe';
+            const borderColor = notification.is_read ? '#94a3b8' : 'var(--primary)';
             
-            const date = new Date(notification.created_at).toLocaleDateString('ru-RU');
-            
-            notifDiv.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                    <h3 style="margin: 0; color: var(--primary); font-size: 16px;">${notification.title}</h3>
-                    ${!notification.is_read ? '<span style="background: var(--primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px;">Новое</span>' : ''}
-                </div>
-                <p style="margin: 5px 0; color: #666;">${notification.message || ''}</p>
-                <p style="margin: 5px 0 0 0; color: #999; font-size: 12px;">${date}</p>
-            `;
-            
-            if (!notification.is_read) {
-                notifDiv.onclick = () => markNotificationRead(notification.id);
-                notifDiv.style.cursor = 'pointer';
+            // Extract status from message if it's an appointment notification
+            let statusInfo = '';
+            if (notification.message) {
+                const statusMatch = notification.message.match(/Статус:\s*([^\.]+)/i);
+                if (statusMatch) {
+                    const status = statusMatch[1].trim();
+                    let statusColor = '#64748b';
+                    let statusText = status;
+                    if (status.toLowerCase().includes('подтвержден') || status.toLowerCase().includes('confirmed')) {
+                        statusColor = '#10b981';
+                        statusText = 'Подтверждено';
+                    } else if (status.toLowerCase().includes('ожидан') || status.toLowerCase().includes('pending')) {
+                        statusColor = '#f59e0b';
+                        statusText = 'Ожидание подтверждения';
+                    } else if (status.toLowerCase().includes('выполнен') || status.toLowerCase().includes('completed')) {
+                        statusColor = '#3b82f6';
+                        statusText = 'Выполнено';
+                    } else if (status.toLowerCase().includes('отменен') || status.toLowerCase().includes('cancelled')) {
+                        statusColor = '#ef4444';
+                        statusText = 'Отменено';
+                    }
+                    statusInfo = `<div style="margin-top: 8px; padding: 8px; background: ${statusColor}15; border-radius: 8px; border-left: 3px solid ${statusColor};">
+                        <p style="margin: 0; color: ${statusColor}; font-weight: 600; font-size: 14px;">📋 Статус ремонта/записи: ${statusText}</p>
+                    </div>`;
+                }
             }
             
-            container.appendChild(notifDiv);
+            html += `
+                <div style="padding: 15px; margin-bottom: 15px; background: ${bgColor}; border-radius: 10px; border-left: 4px solid ${borderColor}; ${!notification.is_read ? 'cursor: pointer;' : ''}" 
+                     ${!notification.is_read ? `onclick="markNotificationRead(${notification.id})"` : ''}>
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                        <h3 style="margin: 0; color: var(--primary); font-size: 16px; font-weight: 600;">${notification.title}</h3>
+                        ${!notification.is_read ? '<span style="background: var(--primary); color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">Новое</span>' : ''}
+                    </div>
+                    <p style="margin: 5px 0; color: #334155; font-size: 14px; line-height: 1.6;">${notification.message || ''}</p>
+                    ${statusInfo}
+                    <p style="margin: 8px 0 0 0; color: #64748b; font-size: 12px;">${date}</p>
+                </div>
+            `;
         });
+        
+        container.innerHTML = html;
     } catch (error) {
         console.error('Ошибка загрузки уведомлений:', error);
-        document.getElementById('userNotifications').innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки уведомлений</p>';
+        const container = document.getElementById('userNotifications');
+        if (container) {
+            container.innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки уведомлений</p>';
+        }
     }
 }
 
@@ -1856,9 +1930,18 @@ async function loadUserNotifications() {
 async function markNotificationRead(notificationId) {
     try {
         const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        // Format token for backend
+        let authToken = token;
+        if (token && !token.includes('mock-jwt-token-') && token.includes('@')) {
+            authToken = `mock-jwt-token-${token}`;
+        }
+        authToken = authToken.replace(/^Bearer\s+/i, '');
+        
         const response = await fetch(`${API_URL}/user/notifications/${notificationId}/read`, {
             method: 'PUT',
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${authToken}` }
         });
         
         if (!response.ok) {
@@ -1877,8 +1960,15 @@ async function loadMasterNotifications() {
         const token = localStorage.getItem('token');
         if (!token) return;
         
+        // Format token for backend
+        let authToken = token;
+        if (token && !token.includes('mock-jwt-token-') && token.includes('@')) {
+            authToken = `mock-jwt-token-${token}`;
+        }
+        authToken = authToken.replace(/^Bearer\s+/i, '');
+        
         const response = await fetch(`${API_URL}/master/notifications`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${authToken}` }
         });
         
         if (!response.ok) {
@@ -1888,32 +1978,458 @@ async function loadMasterNotifications() {
         const appointments = await response.json();
         const container = document.getElementById('masterNotifications');
         
-        if (appointments.length === 0) {
-            container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">У вас пока нет записей</p>';
+        if (!appointments || appointments.length === 0) {
+            container.innerHTML = '<p style="color: #64748b; text-align: center; padding: 20px;">У вас пока нет записей</p>';
             return;
         }
         
-        container.innerHTML = '';
+        let html = '';
         appointments.forEach(apt => {
-            const aptDiv = document.createElement('div');
-            aptDiv.style.cssText = 'background: #f0f9ff; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-left: 4px solid var(--primary);';
+            const date = new Date(apt.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+            const createdDate = new Date(apt.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
             
-            const date = new Date(apt.date).toLocaleDateString('ru-RU');
+            // Status colors
+            let statusColor = '#64748b';
+            let statusText = apt.status;
+            if (apt.status === 'pending') {
+                statusColor = '#f59e0b';
+                statusText = 'Ожидание подтверждения';
+            } else if (apt.status === 'confirmed') {
+                statusColor = '#10b981';
+                statusText = 'Подтверждено';
+            } else if (apt.status === 'completed') {
+                statusColor = '#3b82f6';
+                statusText = 'Выполнено';
+            } else if (apt.status === 'cancelled') {
+                statusColor = '#ef4444';
+                statusText = 'Отменено';
+            }
             
-            aptDiv.innerHTML = `
-                <h3 style="margin: 0 0 10px 0; color: var(--primary);">Запись #${apt.id}</h3>
-                <p style="margin: 5px 0; color: #666;"><strong>Услуга:</strong> ${apt.service_name}</p>
-                <p style="margin: 5px 0; color: #666;"><strong>Клиент:</strong> ${apt.master_name}</p>
-                <p style="margin: 5px 0; color: #666;"><strong>Дата:</strong> ${date}</p>
-                <p style="margin: 5px 0; color: #666;"><strong>Время:</strong> ${apt.time}</p>
-                <p style="margin: 5px 0; color: #64748b;"><strong>Статус:</strong> ${apt.status}</p>
-                ${apt.comment ? `<p style="margin: 5px 0; color: #666;"><strong>Комментарий:</strong> ${apt.comment}</p>` : ''}
+            html += `
+                <div style="padding: 15px; margin-bottom: 15px; background: #f0f9ff; border-radius: 10px; border-left: 4px solid var(--primary);">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                        <h3 style="margin: 0; color: var(--primary); font-size: 18px;">Запись #${apt.id}</h3>
+                        <span style="color: ${statusColor}; font-weight: 600; font-size: 14px; padding: 4px 12px; background: ${statusColor}15; border-radius: 12px;">${statusText}</span>
+                    </div>
+                    <div style="color: #334155; font-size: 14px; line-height: 1.8;">
+                        <p style="margin: 5px 0;"><strong>👤 Клиент:</strong> ${apt.master_name || 'Не указан'}</p>
+                        <p style="margin: 5px 0;"><strong>🔧 Услуга:</strong> ${apt.service_name || 'Не указана'}</p>
+                        <p style="margin: 5px 0;"><strong>📅 Дата записи:</strong> ${date}</p>
+                        <p style="margin: 5px 0;"><strong>⏰ Время:</strong> ${apt.time || 'Не указано'}</p>
+                        ${apt.comment ? `<div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                            <p style="margin: 0; font-weight: 600; color: #334155; margin-bottom: 5px;">📋 Информация:</p>
+                            <p style="margin: 0; color: #64748b; font-size: 13px; white-space: pre-line;">${apt.comment}</p>
+                        </div>` : ''}
+                        <p style="margin: 5px 0; margin-top: 10px; color: #64748b; font-size: 12px;"><strong>📝 Создано:</strong> ${createdDate}</p>
+                    </div>
+                </div>
             `;
-            container.appendChild(aptDiv);
         });
+        
+        container.innerHTML = html;
     } catch (error) {
         console.error('Ошибка загрузки уведомлений мастера:', error);
         document.getElementById('masterNotifications').innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки уведомлений</p>';
+    }
+}
+
+// Load master schedule
+async function loadMasterSchedule() {
+    try {
+        const container = document.getElementById('schedulePreview');
+        if (!container) {
+            return;
+        }
+        
+        const token = localStorage.getItem('token');
+        if (!token) {
+            container.innerHTML = '<p style="color: #64748b;">Расписание не настроено</p>';
+            return;
+        }
+        
+        let authToken = token;
+        if (token && !token.includes('mock-jwt-token-') && token.includes('@')) {
+            authToken = `mock-jwt-token-${token}`;
+        }
+        authToken = authToken.replace(/^Bearer\s+/i, '');
+        
+        let response;
+        try {
+            response = await fetch(`${API_URL}/master/schedule`, {
+                method: 'GET',
+                headers: { 
+                    'Authorization': `Bearer ${authToken}`,
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin'
+            });
+        } catch (networkError) {
+            container.innerHTML = '<p style="color: #e74c3c;">Ошибка сети при загрузке расписания</p>';
+            return;
+        }
+        
+        const contentType = response.headers.get('content-type') || '';
+        const responseText = await response.text();
+        
+        // Always try to parse as JSON if response is OK, even if content-type is wrong
+        // But handle errors gracefully
+        
+        if (!response.ok) {
+            // Try to parse as JSON, but if it fails, show generic error
+            let errorMsg = 'Расписание не настроено';
+            if (responseText && responseText.trim() !== '') {
+                try {
+                    const errorData = JSON.parse(responseText);
+                    if (errorData.error && errorData.error.includes('Master not found')) {
+                        errorMsg = '<p style="color: #64748b;">Профиль мастера не найден</p>';
+                    } else if (errorData.error) {
+                        errorMsg = `<p style="color: #64748b;">${errorData.error}</p>`;
+                    }
+                } catch (e) {
+                    errorMsg = '<p style="color: #64748b;">Расписание не настроено</p>';
+                }
+            }
+            container.innerHTML = errorMsg;
+            return;
+        }
+        
+        // Parse JSON response
+        let schedules;
+        if (!responseText || responseText.trim() === '') {
+            schedules = [];
+        } else {
+            const trimmedText = responseText.trim();
+            const isJsonContent = trimmedText.startsWith('[') || trimmedText.startsWith('{');
+            
+            if (!isJsonContent) {
+                let errorMsg = 'Неверный формат ответа от сервера';
+                const errorMatch = responseText.match(/<title>(.*?)<\/title>|<h1>(.*?)<\/h1>|<body[^>]*>(.*?)<\/body>/is);
+                if (errorMatch) {
+                    errorMsg = (errorMatch[1] || errorMatch[2] || errorMatch[3] || 'Неверный формат ответа').substring(0, 100);
+                }
+                if (responseText.includes('<html') || responseText.includes('<!DOCTYPE')) {
+                    errorMsg = 'Сервер вернул HTML страницу вместо JSON';
+                }
+                container.innerHTML = `<p style="color: #e74c3c;">Ошибка: ${errorMsg}</p>`;
+                return;
+            }
+            
+            try {
+                schedules = JSON.parse(responseText);
+            } catch (e) {
+                container.innerHTML = `<p style="color: #e74c3c;">Ошибка парсинга ответа: ${e.message}</p>`;
+                return;
+            }
+        }
+        
+        if (!Array.isArray(schedules)) {
+            container.innerHTML = '<p style="color: #e74c3c;">Ошибка: Неверный формат данных расписания</p>';
+            return;
+        }
+        
+        // Default times
+        let defaultStartTime = '08:00';
+        let defaultEndTime = '19:00';
+        
+        if (schedules.length === 0) {
+            container.innerHTML = `
+                <div style="padding: 15px; background: #f0f9ff; border-radius: 10px; border-left: 4px solid var(--primary);">
+                    <p style="margin: 5px 0; font-weight: 600; color: var(--primary); font-size: 16px;">Рабочее время</p>
+                    <p style="margin: 10px 0 5px 0; color: #334155; font-size: 18px;">
+                        <strong>${defaultStartTime}</strong> - <strong>${defaultEndTime}</strong>
+                    </p>
+                    <p style="margin: 5px 0 0 0; color: #64748b; font-size: 14px;">
+                        Применяется для всех дней недели (по умолчанию)
+                    </p>
+                </div>
+            `;
+            return;
+        }
+        
+        const firstSchedule = schedules.find(s => s && (s.is_active !== false && s.is_active !== null)) || schedules.find(s => s) || schedules[0];
+        
+        if (firstSchedule && firstSchedule.start_time && firstSchedule.end_time) {
+            let startTime = String(firstSchedule.start_time).trim();
+            let endTime = String(firstSchedule.end_time).trim();
+            
+            // Extract time from various formats
+            const extractTime = (timeStr) => {
+                if (!timeStr) return null;
+                const str = String(timeStr).trim();
+                
+                // Handle ISO datetime format: "0000-01-01T08:00:00Z"
+                const isoMatch = str.match(/T(\d{2}:\d{2}):?\d{0,2}/);
+                if (isoMatch) {
+                    return isoMatch[1];
+                }
+                
+                // Handle HH:MM:SS format
+                if (/^\d{2}:\d{2}:\d{2}/.test(str)) {
+                    return str.substring(0, 5);
+                }
+                
+                // Handle HH:MM format
+                if (/^\d{2}:\d{2}$/.test(str)) {
+                    return str;
+                }
+                
+                return null;
+            };
+            
+            startTime = extractTime(startTime) || '08:00';
+            endTime = extractTime(endTime) || '19:00';
+            
+            // Replace "00:00" with defaults
+            if (startTime === '00:00' || startTime === '00:00:00') {
+                startTime = '08:00';
+            }
+            if (endTime === '00:00' || endTime === '00:00:00') {
+                endTime = '19:00';
+            }
+            
+            // Validate format (must be HH:MM)
+            if (!/^\d{2}:\d{2}$/.test(startTime)) {
+                startTime = '08:00';
+            }
+            if (!/^\d{2}:\d{2}$/.test(endTime)) {
+                endTime = '19:00';
+            }
+            
+            container.innerHTML = `
+                <div style="padding: 15px; background: #f0f9ff; border-radius: 10px; border-left: 4px solid var(--primary);">
+                    <p style="margin: 5px 0; font-weight: 600; color: var(--primary); font-size: 16px;">Рабочее время</p>
+                    <p style="margin: 10px 0 5px 0; color: #334155; font-size: 18px;">
+                        <strong>${startTime}</strong> - <strong>${endTime}</strong>
+                    </p>
+                    <p style="margin: 5px 0 0 0; color: #64748b; font-size: 14px;">
+                        Применяется для всех дней недели
+                    </p>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div style="padding: 15px; background: #f0f9ff; border-radius: 10px; border-left: 4px solid var(--primary);">
+                    <p style="margin: 5px 0; font-weight: 600; color: var(--primary); font-size: 16px;">Рабочее время</p>
+                    <p style="margin: 10px 0 5px 0; color: #334155; font-size: 18px;">
+                        <strong>08:00</strong> - <strong>19:00</strong>
+                    </p>
+                    <p style="margin: 5px 0 0 0; color: #64748b; font-size: 14px;">
+                        Применяется для всех дней недели (по умолчанию)
+                    </p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки расписания:', error);
+        const container = document.getElementById('schedulePreview');
+        if (container) {
+            container.innerHTML = `<p style="color: #e74c3c;">Ошибка загрузки расписания: ${error.message}</p>`;
+        }
+    }
+}
+
+// Show schedule modal
+function showScheduleModal() {
+    const modal = document.getElementById('scheduleModal');
+    if (!modal) {
+        return;
+    }
+    modal.style.display = 'flex';
+    
+    // Load existing schedule values
+    loadScheduleForm();
+}
+
+// Close schedule modal
+function closeScheduleModal() {
+    document.getElementById('scheduleModal').style.display = 'none';
+}
+
+// Load schedule form
+async function loadScheduleForm() {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        let authToken = token;
+        if (token && !token.includes('mock-jwt-token-') && token.includes('@')) {
+            authToken = `mock-jwt-token-${token}`;
+        }
+        authToken = authToken.replace(/^Bearer\s+/i, '');
+        
+        const response = await fetch(`${API_URL}/master/schedule`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        let startTime = '08:00';
+        let endTime = '19:00';
+        
+        if (response.ok) {
+            const schedules = await response.json();
+            if (schedules && schedules.length > 0) {
+                const firstSchedule = schedules.find(s => s.is_active) || schedules[0];
+                if (firstSchedule) {
+                    let rawStart = String(firstSchedule.start_time || '08:00').trim();
+                    let rawEnd = String(firstSchedule.end_time || '19:00').trim();
+                    
+                    // Extract time from various formats
+                    const extractTimeForInput = (timeStr) => {
+                        if (!timeStr) return null;
+                        const str = String(timeStr).trim();
+                        
+                        const isoMatch = str.match(/T(\d{2}:\d{2}):?\d{0,2}/);
+                        if (isoMatch) {
+                            return isoMatch[1];
+                        }
+                        
+                        if (/^\d{2}:\d{2}:\d{2}/.test(str)) {
+                            return str.substring(0, 5);
+                        }
+                        
+                        if (/^\d{2}:\d{2}$/.test(str)) {
+                            return str;
+                        }
+                        
+                        return null;
+                    };
+                    
+                    const extractedStart = extractTimeForInput(rawStart);
+                    const extractedEnd = extractTimeForInput(rawEnd);
+                    
+                    if (extractedStart) {
+                        rawStart = extractedStart;
+                    }
+                    if (extractedEnd) {
+                        rawEnd = extractedEnd;
+                    }
+                    
+                    if (rawStart === '00:00' || rawStart === '00:00:00') {
+                        rawStart = '08:00';
+                    }
+                    if (rawEnd === '00:00' || rawEnd === '00:00:00') {
+                        rawEnd = '19:00';
+                    }
+                    
+                    startTime = rawStart;
+                    endTime = rawEnd;
+                }
+            }
+        }
+        
+        const startInput = document.getElementById('schedule_start_time');
+        const endInput = document.getElementById('schedule_end_time');
+        
+        if (startInput) {
+            startInput.value = startTime;
+        }
+        if (endInput) {
+            endInput.value = endTime;
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки формы расписания:', error);
+    }
+}
+
+// Save schedule
+async function saveSchedule(event) {
+    event.preventDefault();
+    
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            showMessage('Необходима авторизация', 'error');
+            return;
+        }
+        
+        let authToken = token;
+        if (token && !token.includes('mock-jwt-token-') && token.includes('@')) {
+            authToken = `mock-jwt-token-${token}`;
+        }
+        authToken = authToken.replace(/^Bearer\s+/i, '');
+        
+                    // Get start and end times
+                    const startTimeInput = document.getElementById('schedule_start_time');
+                    const endTimeInput = document.getElementById('schedule_end_time');
+                    
+                    if (!startTimeInput || !endTimeInput) {
+                        throw new Error('Поля времени не найдены');
+                    }
+                    
+                    let startTime = startTimeInput.value.trim();
+                    let endTime = endTimeInput.value.trim();
+                    
+                    // Ensure time is in HH:MM format (not HH:MM:SS)
+                    if (startTime.length > 5) {
+                        startTime = startTime.substring(0, 5);
+                    }
+                    if (endTime.length > 5) {
+                        endTime = endTime.substring(0, 5);
+                    }
+                    
+                    // Validate and format time
+                    const validateTime = (time) => {
+                        if (!time || time === '') {
+                            return false;
+                        }
+                        if (!/^\d{2}:\d{2}$/.test(time)) {
+                            return false;
+                        }
+                        const [hours, minutes] = time.split(':').map(Number);
+                        if (hours < 0 || hours >= 24 || minutes < 0 || minutes >= 60) {
+                            return false;
+                        }
+                        return true;
+                    };
+                    
+                    if (!validateTime(startTime) || !validateTime(endTime)) {
+                        throw new Error('Необходимо указать корректное время в формате HH:MM (например, 08:00)');
+                    }
+                    
+                    if (startTime === endTime) {
+                        throw new Error('Время начала и окончания работы должны быть разными');
+                    }
+        
+        // Create schedule for all days of week (0-6)
+        const schedules = [];
+        for (let day = 0; day < 7; day++) {
+            schedules.push({
+                day_of_week: day,
+                start_time: startTime.trim(),
+                end_time: endTime.trim(),
+                is_active: true
+            });
+        }
+        
+        const response = await fetch(`${API_URL}/master/schedule`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ schedules })
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            let errorData;
+            try {
+                errorData = JSON.parse(errorText);
+            } catch (e) {
+                errorData = { error: errorText || 'Не удалось сохранить расписание' };
+            }
+            throw new Error(errorData.error || 'Не удалось сохранить расписание');
+        }
+        
+        showMessage('Расписание успешно сохранено!', 'success');
+        
+        closeScheduleModal();
+        
+        setTimeout(async () => {
+            await loadMasterSchedule();
+        }, 500);
+    } catch (error) {
+        console.error('Ошибка сохранения расписания:', error);
+        showMessage(`Ошибка: ${error.message}`, 'error');
     }
 }
 

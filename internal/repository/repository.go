@@ -986,16 +986,32 @@ func (r *Repository) StartTrial(userID int) (*models.Subscription, error) {
 
 // UpdateUserSubscription updates subscription plan
 func (r *Repository) UpdateUserSubscription(userID int, plan string) error {
+	// Validate plan
+	if plan != "basic" && plan != "premium" && plan != "trial" {
+		return fmt.Errorf("invalid plan: %s", plan)
+	}
+
+	// Update subscription plan
+	// Keep trial dates only if plan is 'trial', otherwise keep existing dates (don't null them)
 	_, err := r.db.Exec(`
 		INSERT INTO user_subscriptions (user_id, plan, created_at, updated_at)
 		VALUES ($1, $2, NOW(), NOW())
 		ON CONFLICT (user_id) DO UPDATE SET 
 			plan = EXCLUDED.plan,
 			updated_at = NOW(),
-			trial_start_date = CASE WHEN EXCLUDED.plan != 'trial' THEN NULL ELSE trial_start_date END,
-			trial_end_date = CASE WHEN EXCLUDED.plan != 'trial' THEN NULL ELSE trial_end_date END
+			trial_start_date = CASE 
+				WHEN EXCLUDED.plan = 'trial' THEN COALESCE(user_subscriptions.trial_start_date, EXCLUDED.trial_start_date)
+				ELSE user_subscriptions.trial_start_date 
+			END,
+			trial_end_date = CASE 
+				WHEN EXCLUDED.plan = 'trial' THEN COALESCE(user_subscriptions.trial_end_date, EXCLUDED.trial_end_date)
+				ELSE user_subscriptions.trial_end_date 
+			END
 	`, userID, plan)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to update subscription: %w", err)
+	}
+	return nil
 }
 
 // Favorite Masters Methods

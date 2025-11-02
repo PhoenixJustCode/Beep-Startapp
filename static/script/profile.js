@@ -1470,6 +1470,11 @@ async function loadUserSubscription() {
         // Show trial info in modal if active
         const trialInfoEl = document.getElementById('trialInfo');
         const trialExpiryText = document.getElementById('trialExpiryText');
+        const trialButton = document.querySelector('#subscriptionModal button[onclick="startTrial()"]');
+        
+        // Check if user has already used trial (has trial_start_date or trial_end_date)
+        const hasUsedTrial = subscription.trial_start_date || subscription.trial_end_date;
+        
         if (subscription.plan === 'trial' && subscription.trial_end_date) {
             trialInfoEl.style.display = 'block';
             const expiryDate = new Date(subscription.trial_end_date);
@@ -1477,6 +1482,15 @@ async function loadUserSubscription() {
             trialExpiryText.textContent = `Пробный период действует до ${expiryStr}`;
         } else {
             trialInfoEl.style.display = 'none';
+        }
+        
+        // Hide trial button if user already used trial period
+        if (trialButton) {
+            if (hasUsedTrial) {
+                trialButton.style.display = 'none';
+            } else {
+                trialButton.style.display = 'block';
+            }
         }
     } catch (error) {
         console.error('Ошибка загрузки подписки:', error);
@@ -1503,22 +1517,52 @@ async function updateSubscription(plan) {
             return;
         }
         
+        // Ensure token format is correct for the backend
+        // Backend expects token with "mock-jwt-token-" prefix
+        let authToken = token;
+        if (token && !token.includes('mock-jwt-token-') && token.includes('@')) {
+            // Token is email, add prefix
+            authToken = `mock-jwt-token-${token}`;
+        }
+        // Remove "Bearer " prefix if present
+        authToken = authToken.replace(/^Bearer\s+/i, '');
+        
         const response = await fetch(`${API_URL}/user/subscription`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${authToken}`
             },
             body: JSON.stringify({ plan })
         });
         
         if (!response.ok) {
-            throw new Error('Не удалось обновить подписку');
+            let errorMessage = 'Не удалось обновить подписку';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorMessage;
+                console.error('Subscription update error:', errorData);
+                console.error('Response status:', response.status, response.statusText);
+                
+                // If user not found, suggest to re-login
+                if (response.status === 401 && errorData.code === 'USER_NOT_FOUND') {
+                    errorMessage = 'Пользователь не найден. Пожалуйста, войдите в систему снова.';
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                }
+            } catch (e) {
+                console.error('Failed to parse error response:', e);
+                console.error('Response status:', response.status, response.statusText);
+                errorMessage = `Ошибка ${response.status}: ${response.statusText || 'Не удалось обновить подписку'}`;
+            }
+            throw new Error(errorMessage);
         }
         
         showMessage('Подписка успешно обновлена!', 'success');
         loadUserSubscription();
-        closeSubscriptionModal();
+        setTimeout(() => {
+            closeSubscriptionModal();
+        }, 1000);
     } catch (error) {
         console.error('Ошибка обновления подписки:', error);
         showMessage(`Ошибка обновления подписки: ${error.message}`, 'error');
@@ -1534,10 +1578,17 @@ async function startTrial() {
             return;
         }
         
+        // Ensure token format is correct for the backend
+        let authToken = token;
+        if (token && !token.includes('mock-jwt-token-') && token.includes('@')) {
+            authToken = `mock-jwt-token-${token}`;
+        }
+        authToken = authToken.replace(/^Bearer\s+/i, '');
+        
         const response = await fetch(`${API_URL}/user/subscription/trial`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${authToken}`
             }
         });
         

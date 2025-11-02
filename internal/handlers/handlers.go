@@ -1265,12 +1265,34 @@ func (h *Handlers) UpdateUserSubscription(c *gin.Context) {
 
 	userID, err := h.getUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "user not found") || strings.Contains(errMsg, "Please register first") {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Пользователь не найден. Пожалуйста, войдите в систему или зарегистрируйтесь.",
+				"code":  "USER_NOT_FOUND",
+			})
+		} else {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Не авторизован: " + errMsg})
+		}
 		return
 	}
 
+	// Check current subscription to allow upgrade from trial to premium
+	currentSub, err := h.repo.GetUserSubscription(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось получить информацию о подписке: " + err.Error()})
+		return
+	}
+
+	// Allow upgrade from trial to premium or any other transition
+	if currentSub.Plan == "trial" && req.Plan == "premium" {
+		// This is fine - allow upgrade
+	} else if currentSub.Plan == "trial" && req.Plan == "basic" {
+		// Downgrade from trial to basic is also fine
+	}
+
 	if err := h.repo.UpdateUserSubscription(userID, req.Plan); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось обновить подписку: " + err.Error()})
 		return
 	}
 

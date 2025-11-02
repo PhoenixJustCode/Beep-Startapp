@@ -4,6 +4,13 @@ let selectedMasterId = null;
 let selectedServiceId = null;
 let allMasters = []; // Store all masters for filtering
 
+// Map variables
+let map = null;
+let userLocationMarker = null;
+let masterMarkers = [];
+let selectedLocation = null;
+let searchRadius = 10; // km
+
 // Utility function to log duplicates
 function logDuplicates(data, type, uniqueData) {
     if (data.length !== uniqueData.length) {
@@ -26,7 +33,227 @@ window.onload = function() {
     loadMasters();
     loadCars();
     setDefaultDate();
+    initMap();
 };
+
+// Initialize map
+function initMap() {
+    // Default center: Almaty, Kazakhstan
+    const defaultCenter = [43.2220, 76.8512];
+    
+    map = L.map('map').setView(defaultCenter, 12);
+    
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+    }).addTo(map);
+    
+    // Add click handler to select location
+    map.on('click', function(e) {
+        selectLocationOnMap(e.latlng.lat, e.latlng.lng);
+    });
+    
+    // Try to get user location automatically
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                selectLocationOnMap(lat, lng, true);
+            },
+            function(error) {
+                console.log('Geolocation error:', error);
+            }
+        );
+    }
+}
+
+// Select location on map
+function selectLocationOnMap(lat, lng, isUserLocation = false) {
+    selectedLocation = { lat, lng };
+    
+    // Remove existing marker
+    if (userLocationMarker) {
+        map.removeLayer(userLocationMarker);
+    }
+    
+    // Create custom icon
+    const icon = L.icon({
+        iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="${isUserLocation ? '#10b981' : '#667eea'}">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+            </svg>
+        `),
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32]
+    });
+    
+    // Add marker
+    userLocationMarker = L.marker([lat, lng], { icon }).addTo(map);
+    
+    if (isUserLocation) {
+        userLocationMarker.bindPopup('<b>Ваше местоположение</b>').openPopup();
+    } else {
+        userLocationMarker.bindPopup('<b>Выбранное местоположение</b>').openPopup();
+    }
+    
+    // Center map on selected location
+    map.setView([lat, lng], 13);
+    
+    // Update masters display based on location
+    updateMastersByLocation();
+}
+
+// Get user location
+function getUserLocation() {
+    if (!navigator.geolocation) {
+        alert('Геолокация не поддерживается вашим браузером');
+        return;
+    }
+    
+    const button = event.target;
+    const originalText = button.textContent;
+    button.textContent = '⏳ Определение...';
+    button.disabled = true;
+    
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            selectLocationOnMap(lat, lng, true);
+            button.textContent = originalText;
+            button.disabled = false;
+        },
+        function(error) {
+            console.error('Geolocation error:', error);
+            alert('Не удалось определить ваше местоположение. Пожалуйста, выберите местоположение на карте.');
+            button.textContent = originalText;
+            button.disabled = false;
+        }
+    );
+}
+
+// Clear map location
+function clearMapLocation() {
+    if (userLocationMarker) {
+        map.removeLayer(userLocationMarker);
+        userLocationMarker = null;
+    }
+    selectedLocation = null;
+    
+    // Remove radius circle
+    map.eachLayer(function(layer) {
+        if (layer instanceof L.Circle) {
+            map.removeLayer(layer);
+        }
+    });
+    
+    // Reload all masters
+    loadMasters();
+}
+
+// Update radius
+function updateRadius(radius) {
+    searchRadius = parseInt(radius);
+    document.getElementById('radius-value').textContent = `${searchRadius} км`;
+    
+    if (selectedLocation) {
+        updateMastersByLocation();
+    }
+}
+
+// Calculate distance between two points (Haversine formula)
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+// Update masters by location
+function updateMastersByLocation() {
+    if (!selectedLocation || !allMasters.length) return;
+    
+    // Remove existing master markers
+    masterMarkers.forEach(marker => map.removeLayer(marker));
+    masterMarkers = [];
+    
+    // Remove existing radius circle
+    map.eachLayer(function(layer) {
+        if (layer instanceof L.Circle) {
+            map.removeLayer(layer);
+        }
+    });
+    
+    // Draw radius circle
+    const radiusCircle = L.circle([selectedLocation.lat, selectedLocation.lng], {
+        color: '#667eea',
+        fillColor: '#667eea',
+        fillOpacity: 0.1,
+        radius: searchRadius * 1000 // convert km to meters
+    }).addTo(map);
+    
+    // Filter and display masters within radius
+    const nearbyMasters = allMasters.filter(master => {
+        if (!master.location_lat || !master.location_lng) return false;
+        const distance = calculateDistance(
+            selectedLocation.lat,
+            selectedLocation.lng,
+            master.location_lat,
+            master.location_lng
+        );
+        master.distance = distance;
+        return distance <= searchRadius;
+    });
+    
+    // Sort by distance
+    nearbyMasters.sort((a, b) => a.distance - b.distance);
+    
+    // Add markers for nearby masters
+    nearbyMasters.forEach(master => {
+        const masterIcon = L.icon({
+            iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#ef4444">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                </svg>
+            `),
+            iconSize: [28, 28],
+            iconAnchor: [14, 28],
+            popupAnchor: [0, -28]
+        });
+        
+        const marker = L.marker([master.location_lat, master.location_lng], { icon: masterIcon })
+            .addTo(map)
+            .bindPopup(`
+                <div style="min-width: 200px;">
+                    <h3 style="margin: 0 0 8px 0; color: #334155;">${master.name}</h3>
+                    <p style="margin: 4px 0; color: #64748b; font-size: 14px;">${master.specialization || 'Мастер'}</p>
+                    <p style="margin: 4px 0; color: #64748b; font-size: 14px;">⭐ ${master.rating || 'N/A'}</p>
+                    <p style="margin: 4px 0; color: #64748b; font-size: 14px;">📍 ${master.address || 'Адрес не указан'}</p>
+                    <p style="margin: 4px 0; color: var(--primary); font-weight: 600; font-size: 14px;">📏 ${master.distance.toFixed(1)} км</p>
+                    <button onclick="selectMaster(${master.id})" style="margin-top: 8px; padding: 6px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">Выбрать</button>
+                </div>
+            `);
+        
+        masterMarkers.push(marker);
+    });
+    
+    // Update masters list to show only nearby masters
+    if (nearbyMasters.length > 0) {
+        renderMasters(nearbyMasters);
+        console.log(`Найдено ${nearbyMasters.length} мастеров в радиусе ${searchRadius} км`);
+    } else {
+        const container = document.getElementById('masters-container');
+        container.innerHTML = `<div style="text-align: center; padding: 20px; color: #64748b;">В радиусе ${searchRadius} км мастеров не найдено</div>`;
+    }
+}
 
 function setDefaultDate() {
     const tomorrow = new Date();
@@ -148,7 +375,16 @@ async function loadMasters() {
             return;
         }
 
-        renderMasters(uniqueMasters);
+        // If location is selected, filter by location, otherwise show all
+        if (selectedLocation) {
+            updateMastersByLocation();
+        } else {
+            renderMasters(uniqueMasters);
+            // Add all masters to map if no location selected
+            if (map) {
+                addAllMastersToMap(uniqueMasters);
+            }
+        }
     } catch (error) {
         console.error('Ошибка загрузки мастеров:', error);
         document.getElementById('masters-container').innerHTML = '<div class="error">Ошибка загрузки мастеров</div>';
@@ -768,5 +1004,41 @@ function logout() {
 
 function viewProfile() {
     window.location.href = '/profile';
+}
+
+// Add all masters to map (when no location filter is applied)
+function addAllMastersToMap(masters) {
+    // Remove existing master markers
+    masterMarkers.forEach(marker => map.removeLayer(marker));
+    masterMarkers = [];
+    
+    masters.forEach(master => {
+        if (!master.location_lat || !master.location_lng) return;
+        
+        const masterIcon = L.icon({
+            iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#ef4444">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                </svg>
+            `),
+            iconSize: [28, 28],
+            iconAnchor: [14, 28],
+            popupAnchor: [0, -28]
+        });
+        
+        const marker = L.marker([master.location_lat, master.location_lng], { icon: masterIcon })
+            .addTo(map)
+            .bindPopup(`
+                <div style="min-width: 200px;">
+                    <h3 style="margin: 0 0 8px 0; color: #334155;">${master.name}</h3>
+                    <p style="margin: 4px 0; color: #64748b; font-size: 14px;">${master.specialization || 'Мастер'}</p>
+                    <p style="margin: 4px 0; color: #64748b; font-size: 14px;">⭐ ${master.rating || 'N/A'}</p>
+                    <p style="margin: 4px 0; color: #64748b; font-size: 14px;">📍 ${master.address || 'Адрес не указан'}</p>
+                    <button onclick="selectMaster(${master.id})" style="margin-top: 8px; padding: 6px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">Выбрать</button>
+                </div>
+            `);
+        
+        masterMarkers.push(marker);
+    });
 }
     

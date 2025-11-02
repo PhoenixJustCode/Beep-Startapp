@@ -253,6 +253,45 @@ button:active {
     background: #eef2ff;
 }
 
+/* Map styles */
+#map {
+    z-index: 0;
+}
+
+.leaflet-container {
+    font-family: inherit;
+}
+
+.leaflet-popup-content-wrapper {
+    border-radius: 8px;
+}
+
+.leaflet-popup-content {
+    margin: 12px 15px;
+}
+
+.leaflet-popup-content h3 {
+    margin: 0 0 8px 0;
+    color: #334155;
+    font-size: 16px;
+}
+
+.leaflet-popup-content button {
+    margin-top: 8px;
+    padding: 6px 12px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s;
+}
+
+.leaflet-popup-content button:hover {
+    background: var(--secondary);
+}
+
 .master-avatar {
     width: 80px;
     height: 80px;

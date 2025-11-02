@@ -1471,10 +1471,6 @@ async function loadUserSubscription() {
         // Show trial info in modal if active
         const trialInfoEl = document.getElementById('trialInfo');
         const trialExpiryText = document.getElementById('trialExpiryText');
-        const trialButton = document.querySelector('#subscriptionModal button[onclick="startTrial()"]');
-        
-        // Check if user has already used trial (has trial_start_date or trial_end_date)
-        const hasUsedTrial = subscription.trial_start_date || subscription.trial_end_date;
         
         if (subscription.plan === 'trial' && subscription.trial_end_date) {
             trialInfoEl.style.display = 'block';
@@ -1485,14 +1481,6 @@ async function loadUserSubscription() {
             trialInfoEl.style.display = 'none';
         }
         
-        // Hide trial button if user already used trial period
-        if (trialButton) {
-            if (hasUsedTrial) {
-                trialButton.style.display = 'none';
-            } else {
-                trialButton.style.display = 'block';
-            }
-        }
     } catch (error) {
         console.error('Ошибка загрузки подписки:', error);
     }
@@ -1570,43 +1558,6 @@ async function updateSubscription(plan) {
     }
 }
 
-// Start trial
-async function startTrial() {
-    try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            showMessage('Необходима авторизация', 'error');
-            return;
-        }
-        
-        // Ensure token format is correct for the backend
-        let authToken = token;
-        if (token && !token.includes('mock-jwt-token-') && token.includes('@')) {
-            authToken = `mock-jwt-token-${token}`;
-        }
-        authToken = authToken.replace(/^Bearer\s+/i, '');
-        
-        const response = await fetch(`${API_URL}/user/subscription/trial`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${authToken}`
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Не удалось начать пробный период');
-        }
-        
-        showMessage('Пробный период на 7 дней активирован!', 'success');
-        loadUserSubscription();
-        setTimeout(() => {
-            closeSubscriptionModal();
-        }, 1500);
-    } catch (error) {
-        console.error('Ошибка начала пробного периода:', error);
-        showMessage(`Ошибка: ${error.message}`, 'error');
-    }
-}
 
 // Load user cars
 async function loadUserCars() {

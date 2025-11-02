@@ -245,8 +245,7 @@ func (r *Repository) UpdateUserProfile(userID int, name, email, phone string) er
 
 // Masters
 func (r *Repository) GetAllMasters() ([]models.Master, error) {
-	// Select all masters and deduplicate by id in Go
-	// Remove ORDER BY temporarily to debug
+	// Select all masters and deduplicate by id and email
 	rows, err := r.db.Query(`
 		SELECT id, user_id, name, email, phone, specialization, rating, photo_url, 
 			location_lat, location_lng, address, created_at, updated_at 
@@ -258,8 +257,12 @@ func (r *Repository) GetAllMasters() ([]models.Master, error) {
 	}
 	defer rows.Close()
 
-	// Use map to deduplicate by id
+	// Use map to deduplicate by id (primary key)
 	masterMap := make(map[int]models.Master)
+	// Track by email, name, and name+phone to catch duplicates with different IDs
+	emailMap := make(map[string]int)
+	nameMap := make(map[string]int)      // track by name only
+	namePhoneMap := make(map[string]int) // key: "name|phone"
 
 	for rows.Next() {
 		var master models.Master
@@ -297,9 +300,80 @@ func (r *Repository) GetAllMasters() ([]models.Master, error) {
 			master.Address = address.String
 		}
 
-		// Only add if we haven't seen this ID before (keeps first occurrence)
+		// Deduplicate by ID (primary deduplication)
 		if _, exists := masterMap[master.ID]; !exists {
-			masterMap[master.ID] = master // Store value, not pointer
+			emailLower := strings.ToLower(strings.TrimSpace(master.Email))
+			nameLower := strings.ToLower(strings.TrimSpace(master.Name))
+			phoneTrimmed := strings.TrimSpace(master.Phone)
+
+			shouldAdd := true
+			var duplicateFound bool
+			var existingMasterID int
+
+			// Check if we already have a master with the same email
+			if emailLower != "" {
+				if existingID, emailExists := emailMap[emailLower]; emailExists && existingID != master.ID {
+					shouldAdd = false
+					duplicateFound = true
+					existingMasterID = existingID
+				}
+			}
+
+			// Check if we already have a master with the same name (exact match)
+			if shouldAdd && nameLower != "" {
+				if existingID, nameExists := nameMap[nameLower]; nameExists && existingID != master.ID {
+					shouldAdd = false
+					duplicateFound = true
+					existingMasterID = existingID
+				}
+			}
+
+			// Also check by name+phone combination
+			if shouldAdd && nameLower != "" && phoneTrimmed != "" {
+				namePhoneKey := nameLower + "|" + phoneTrimmed
+				if existingID, namePhoneExists := namePhoneMap[namePhoneKey]; namePhoneExists && existingID != master.ID {
+					shouldAdd = false
+					duplicateFound = true
+					existingMasterID = existingID
+				}
+			}
+
+			// If duplicate found, keep the one with higher ID (newer) or higher rating
+			if duplicateFound {
+				existingMaster := masterMap[existingMasterID]
+				// Keep the one with higher rating, or if equal, keep the one with higher ID
+				if master.Rating > existingMaster.Rating ||
+					(master.Rating == existingMaster.Rating && master.ID > existingMasterID) {
+					// Replace existing with current (better) master
+					delete(masterMap, existingMasterID)
+					masterMap[master.ID] = master
+					// Update tracking maps
+					if emailLower != "" {
+						emailMap[emailLower] = master.ID
+					}
+					if nameLower != "" {
+						nameMap[nameLower] = master.ID
+					}
+					if nameLower != "" && phoneTrimmed != "" {
+						namePhoneKey := nameLower + "|" + phoneTrimmed
+						namePhoneMap[namePhoneKey] = master.ID
+					}
+				}
+				// Otherwise keep existing master, skip current
+			} else {
+				// Not a duplicate, add it
+				masterMap[master.ID] = master
+				if emailLower != "" {
+					emailMap[emailLower] = master.ID
+				}
+				if nameLower != "" {
+					nameMap[nameLower] = master.ID
+				}
+				if nameLower != "" && phoneTrimmed != "" {
+					namePhoneKey := nameLower + "|" + phoneTrimmed
+					namePhoneMap[namePhoneKey] = master.ID
+				}
+			}
 		}
 	}
 

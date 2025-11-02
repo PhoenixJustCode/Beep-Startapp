@@ -35,7 +35,6 @@ func SetupRouter(h *handlers.Handlers) *gin.Engine {
 			user.POST("/photo", h.UploadProfilePhoto)
 			user.GET("/subscription", h.GetUserSubscription)
 			user.PUT("/subscription", h.UpdateUserSubscription)
-			user.POST("/subscription/trial", h.StartTrial)
 			user.GET("/cars", h.GetUserCars)
 			user.POST("/cars", h.CreateUserCar)
 			user.PUT("/cars/:id", h.UpdateUserCar)

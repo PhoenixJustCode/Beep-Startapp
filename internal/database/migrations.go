@@ -259,6 +259,37 @@ func RunMigrations(db *sql.DB) error {
 		log.Printf("Migration %s completed", fixPhotoURLsMigration.name)
 	}
 
+	// Add trial date columns to user_subscriptions if they don't exist
+	addTrialDatesMigration := struct {
+		name string
+		sql  string
+	}{
+		name: "add_trial_dates_to_subscriptions",
+		sql: `
+			DO $$ 
+			BEGIN
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns 
+					WHERE table_name = 'user_subscriptions' AND column_name = 'trial_start_date'
+				) THEN
+					ALTER TABLE user_subscriptions ADD COLUMN trial_start_date TIMESTAMP;
+				END IF;
+				
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns 
+					WHERE table_name = 'user_subscriptions' AND column_name = 'trial_end_date'
+				) THEN
+					ALTER TABLE user_subscriptions ADD COLUMN trial_end_date TIMESTAMP;
+				END IF;
+			END $$;`,
+	}
+
+	if _, err := db.ExecContext(ctx, addTrialDatesMigration.sql); err != nil {
+		log.Printf("Warning: Failed to add trial dates columns: %v", err)
+	} else {
+		log.Printf("Migration %s completed", addTrialDatesMigration.name)
+	}
+
 	// Create new tables for additional features
 	newMigrations := []struct {
 		name string

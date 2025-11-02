@@ -421,17 +421,14 @@ func (r *Repository) GetAvailableSlots(masterID int, date time.Time) ([]string, 
 	var startTime, endTime string
 	if err == sql.ErrNoRows {
 		// No schedule found for this day, use default 08:00 - 19:00
-		fmt.Printf("No schedule found for master %d on day %d, using default 08:00-19:00\n", masterID, dayOfWeek)
 		startTime = "08:00"
 		endTime = "19:00"
 	} else if err != nil {
-		fmt.Printf("Error getting schedule for master %d on day %d: %v\n", masterID, dayOfWeek, err)
 		return nil, err
 	} else {
 		// Format time to HH:MM
 		startTime = startTimeDB.Format("15:04:05")[:5]
 		endTime = endTimeDB.Format("15:04:05")[:5]
-		fmt.Printf("Found schedule for master %d on day %d: %s - %s\n", masterID, dayOfWeek, startTime, endTime)
 	}
 
 	// Get existing appointments for that date
@@ -470,21 +467,15 @@ func (r *Repository) GetAvailableSlots(masterID int, date time.Time) ([]string, 
 	startTotalMinutes := startHour*60 + startMin
 	endTotalMinutes := endHour*60 + endMin
 
-	fmt.Printf("Generating slots from %d mins to %d mins (every 60 mins)\n", startTotalMinutes, endTotalMinutes)
-
 	for currentMin := startTotalMinutes; currentMin < endTotalMinutes; currentMin += 60 {
 		hour := currentMin / 60
 		min := currentMin % 60
 		slot := fmt.Sprintf("%02d:%02d", hour, min)
 		if !bookedTimes[slot] {
 			slots = append(slots, slot)
-			fmt.Printf("Added slot: %s\n", slot)
-		} else {
-			fmt.Printf("Slot %s is already booked\n", slot)
 		}
 	}
 
-	fmt.Printf("Total available slots for master %d on %s: %d slots\n", masterID, date.Format("2006-01-02"), len(slots))
 	return slots, nil
 }
 

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"beep-backend/internal/models"
 	"beep-backend/internal/repository"
 	"database/sql"
 	"fmt"
@@ -29,18 +30,34 @@ func (h *Handlers) getUserIDFromContext(c *gin.Context) (int, error) {
 		return 0, fmt.Errorf("no authorization header")
 	}
 
-	// Extract email from mock token (format: "Bearer mock-jwt-token-email@example.com")
-	parts := strings.Split(authHeader, "mock-jwt-token-")
-	if len(parts) != 2 {
-		return 0, fmt.Errorf("invalid token format")
+	// Remove "Bearer " prefix if present
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	token = strings.TrimSpace(token)
+
+	// Extract email from mock token (format: "mock-jwt-token-email@example.com" or just "email@example.com")
+	var email string
+	if strings.Contains(token, "mock-jwt-token-") {
+		parts := strings.Split(token, "mock-jwt-token-")
+		if len(parts) != 2 {
+			return 0, fmt.Errorf("invalid token format: expected 'mock-jwt-token-email', got: %s", token)
+		}
+		email = parts[1]
+	} else {
+		// Try to use token directly as email (for backward compatibility)
+		email = token
 	}
 
-	email := parts[1]
+	if email == "" {
+		return 0, fmt.Errorf("email not found in token: %s", token)
+	}
 
 	// Get user by email
 	user, err := h.repo.GetUserByEmail(email)
 	if err != nil {
-		return 0, fmt.Errorf("user not found: %v", err)
+		if err == sql.ErrNoRows {
+			return 0, fmt.Errorf("user not found with email: %s. Please register first", email)
+		}
+		return 0, fmt.Errorf("database error: %v", err)
 	}
 
 	return user.ID, nil
@@ -188,7 +205,39 @@ func (h *Handlers) GetMasters(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, masters)
+
+	// Get user ID from context (optional - for checking favorites)
+	userID, _ := h.getUserIDFromContext(c)
+
+	// Enhance masters with verification status and favorite status
+	type MasterResponse struct {
+		*models.Master `json:",inline"`
+		IsVerified     bool `json:"is_verified"`
+		ReviewCount    int  `json:"review_count"`
+		WorkCount      int  `json:"work_count"`
+		IsFavorite     bool `json:"is_favorite"`
+	}
+
+	var result []MasterResponse
+	for _, master := range masters {
+		// Create a copy to avoid pointer issues
+		masterCopy := master
+		isVerified, reviewCount, workCount, _ := h.repo.CheckMasterVerificationStatus(master.ID)
+		isFavorite := false
+		if userID > 0 {
+			isFavorite, _ = h.repo.IsFavoriteMaster(userID, master.ID)
+		}
+
+		result = append(result, MasterResponse{
+			Master:      &masterCopy, // Use copy, not original
+			IsVerified:  isVerified,
+			ReviewCount: reviewCount,
+			WorkCount:   workCount,
+			IsFavorite:  isFavorite,
+		})
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 func (h *Handlers) GetMasterByID(c *gin.Context) {
@@ -1152,4 +1201,379 @@ func (h *Handlers) CreateReview(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, review)
+}
+
+// New Feature Handlers
+
+// GetMasterVerificationStatus gets verification status for a master
+func (h *Handlers) GetMasterVerificationStatus(c *gin.Context) {
+	masterID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid master ID"})
+		return
+	}
+
+	isVerified, reviewCount, workCount, err := h.repo.CheckMasterVerificationStatus(masterID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"is_verified":  isVerified,
+		"review_count": reviewCount,
+		"work_count":   workCount,
+		"status":       "Проверенный мастер",
+	})
+}
+
+// Subscription Handlers
+
+// GetUserSubscription gets subscription for current user
+func (h *Handlers) GetUserSubscription(c *gin.Context) {
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	subscription, err := h.repo.GetUserSubscription(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, subscription)
+}
+
+// UpdateUserSubscription updates subscription plan
+func (h *Handlers) UpdateUserSubscription(c *gin.Context) {
+	type Request struct {
+		Plan string `json:"plan" binding:"required"`
+	}
+
+	var req Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.Plan != "basic" && req.Plan != "premium" && req.Plan != "trial" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid plan. Must be 'basic', 'premium' or 'trial'"})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if err := h.repo.UpdateUserSubscription(userID, req.Plan); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Subscription updated successfully"})
+}
+
+// StartTrial starts a trial period for current user
+func (h *Handlers) StartTrial(c *gin.Context) {
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	subscription, err := h.repo.StartTrial(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, subscription)
+}
+
+// Favorite Masters Handlers
+
+// AddFavoriteMaster adds a master to favorites
+func (h *Handlers) AddFavoriteMaster(c *gin.Context) {
+	type Request struct {
+		MasterID int `json:"master_id" binding:"required"`
+	}
+
+	var req Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		// Provide helpful error message
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "user not found") || strings.Contains(errMsg, "Please register first") {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error":   "Пользователь не найден. Пожалуйста, войдите в систему или зарегистрируйтесь.",
+				"code":    "USER_NOT_FOUND",
+				"details": errMsg,
+			})
+		} else {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Не авторизован: " + errMsg})
+		}
+		return
+	}
+
+	if req.MasterID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid master_id"})
+		return
+	}
+
+	if err := h.repo.AddFavoriteMaster(userID, req.MasterID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add favorite: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Master added to favorites"})
+}
+
+// RemoveFavoriteMaster removes a master from favorites
+func (h *Handlers) RemoveFavoriteMaster(c *gin.Context) {
+	masterID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid master ID"})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		// Provide helpful error message
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "user not found") || strings.Contains(errMsg, "Please register first") {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error":   "Пользователь не найден. Пожалуйста, войдите в систему или зарегистрируйтесь.",
+				"code":    "USER_NOT_FOUND",
+				"details": errMsg,
+			})
+		} else {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Не авторизован: " + errMsg})
+		}
+		return
+	}
+
+	if masterID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid master ID"})
+		return
+	}
+
+	if err := h.repo.RemoveFavoriteMaster(userID, masterID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove favorite: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Master removed from favorites"})
+}
+
+// GetFavoriteMasters gets all favorite masters for current user
+func (h *Handlers) GetFavoriteMasters(c *gin.Context) {
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	masters, err := h.repo.GetFavoriteMasters(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, masters)
+}
+
+// User Cars Handlers
+
+// GetUserCars gets all cars for current user
+func (h *Handlers) GetUserCars(c *gin.Context) {
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	cars, err := h.repo.GetUserCars(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, cars)
+}
+
+// CreateUserCar creates a new car for current user
+func (h *Handlers) CreateUserCar(c *gin.Context) {
+	type Request struct {
+		Name    string `json:"name" binding:"required"`
+		Year    int    `json:"year"`
+		Comment string `json:"comment"`
+	}
+
+	var req Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	car, err := h.repo.CreateUserCar(userID, req.Name, req.Year, req.Comment)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, car)
+}
+
+// UpdateUserCar updates a car
+func (h *Handlers) UpdateUserCar(c *gin.Context) {
+	carID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid car ID"})
+		return
+	}
+
+	type Request struct {
+		Name    string `json:"name" binding:"required"`
+		Year    int    `json:"year"`
+		Comment string `json:"comment"`
+	}
+
+	var req Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if err := h.repo.UpdateUserCar(carID, userID, req.Name, req.Year, req.Comment); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Car updated successfully"})
+}
+
+// DeleteUserCar deletes a car
+func (h *Handlers) DeleteUserCar(c *gin.Context) {
+	carID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid car ID"})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if err := h.repo.DeleteUserCar(carID, userID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Car deleted successfully"})
+}
+
+// Guarantees Handlers
+
+// GetUserGuarantees gets all active guarantees for current user
+func (h *Handlers) GetUserGuarantees(c *gin.Context) {
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	guarantees, err := h.repo.GetUserGuarantees(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, guarantees)
+}
+
+// Notifications Handlers
+
+// GetUserNotifications gets all notifications for current user
+func (h *Handlers) GetUserNotifications(c *gin.Context) {
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	notifications, err := h.repo.GetUserNotifications(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, notifications)
+}
+
+// GetMasterNotifications gets appointments for master (for master notifications)
+func (h *Handlers) GetMasterNotifications(c *gin.Context) {
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	master, err := h.repo.GetMasterByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Master not found"})
+		return
+	}
+
+	appointments, err := h.repo.GetMasterAppointmentsForNotifications(master.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, appointments)
+}
+
+// MarkNotificationRead marks a notification as read
+func (h *Handlers) MarkNotificationRead(c *gin.Context) {
+	notificationID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid notification ID"})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if err := h.repo.MarkNotificationRead(notificationID, userID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Notification marked as read"})
 }

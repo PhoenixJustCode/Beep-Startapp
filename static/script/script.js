@@ -162,10 +162,24 @@ function renderMasters(masters) {
     masters.forEach(master => {
         const card = document.createElement('div');
         card.className = 'master-card';
-        card.onclick = () => selectMaster(master.id);
+        card.onclick = (e) => {
+            if (e.target.classList.contains('favorite-star') || e.target.parentElement.classList.contains('favorite-star')) {
+                return; // Don't select master when clicking star
+            }
+            selectMaster(master.id);
+        };
+        
+        const isVerified = master.is_verified ? '<span style="color: #10b981; font-size: 14px; font-weight: 600;">✓ Проверенный</span>' : '';
+        const favoriteClass = master.is_favorite ? 'favorite-active' : '';
+        const favoriteIcon = master.is_favorite ? '⭐' : '☆';
+        
         card.innerHTML = `
-            <div class="master-avatar">${master.name.charAt(0)}</div>
+            <div style="position: relative;">
+                <div class="master-avatar">${master.name.charAt(0)}</div>
+                <span class="favorite-star ${favoriteClass}" onclick="toggleFavorite(${master.id}, event)" style="position: absolute; top: 5px; right: 5px; font-size: 16px; cursor: pointer; z-index: 10; padding: 2px; background: rgba(255,255,255,0.8); border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; line-height: 1;" title="${master.is_favorite ? 'Удалить из избранного' : 'Добавить в избранное'}">${favoriteIcon}</span>
+            </div>
             <h3>${master.name}</h3>
+            ${isVerified}
             <div class="rating">⭐ ${master.rating || 'N/A'}</div>
             <p class="specialization">${master.specialization || 'Expert'}</p>
             <div class="master-location">📍 ${master.address || 'Location not specified'}</div>
@@ -174,13 +188,136 @@ function renderMasters(masters) {
     });
 }
 
+// Toggle favorite master
+async function toggleFavorite(masterId, event) {
+    event.stopPropagation();
+    
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            showResults('Необходима авторизация для добавления в избранное', 'error');
+            return;
+        }
+        
+        // Find master in allMasters
+        const master = allMasters.find(m => m.id === masterId);
+        if (!master) return;
+        
+        const isFavorite = master.is_favorite;
+        const url = isFavorite ? `${API_URL}/favorites/${masterId}` : `${API_URL}/favorites`;
+        const method = isFavorite ? 'DELETE' : 'POST';
+        
+        const requestBody = isFavorite ? undefined : JSON.stringify({ master_id: masterId });
+        
+        // Ensure token format is correct for the backend
+        // Backend expects token with "mock-jwt-token-" prefix
+        // If token is just email, add prefix; if already has prefix, use as is
+        let authToken = token;
+        if (token && !token.includes('mock-jwt-token-') && token.includes('@')) {
+            // Token is email, add prefix
+            authToken = `mock-jwt-token-${token}`;
+        }
+        // Remove "Bearer " prefix if present, backend will add it
+        authToken = authToken.replace(/^Bearer\s+/i, '');
+        
+        const response = await fetch(url, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: requestBody
+        });
+        
+        if (!response.ok) {
+            let errorMessage = 'Не удалось обновить избранное';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorMessage;
+                console.error('API Error:', errorData);
+                
+                // If user not found, suggest to re-login or register
+                if (response.status === 401) {
+                    if (errorData.error && (errorData.error.includes('не найден') || errorData.error.includes('not found'))) {
+                        errorMessage = 'Пользователь не найден. Пожалуйста, войдите в систему или зарегистрируйтесь.';
+                        // Clear token and redirect to login
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                        
+                        // Show login modal after a short delay
+                        setTimeout(() => {
+                            if (typeof showLoginModal === 'function') {
+                                showLoginModal();
+                            } else {
+                                // If modal function not available, reload page
+                                window.location.reload();
+                            }
+                        }, 1000);
+                    } else {
+                        errorMessage = 'Необходима авторизация. Пожалуйста, войдите в систему.';
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                    }
+                }
+            } catch (e) {
+                console.error('Response status:', response.status, response.statusText);
+            }
+            throw new Error(errorMessage);
+        }
+        
+        // Update local state immediately for UI responsiveness
+        master.is_favorite = !isFavorite;
+        
+        console.log(`Favorite ${!isFavorite ? 'added' : 'removed'} for master ${masterId}, new state: ${master.is_favorite}`);
+        
+        // Re-render masters with updated state immediately
+        const searchTerm = document.getElementById('master-search').value.toLowerCase();
+        if (searchTerm) {
+            filterMasters();
+        } else {
+            renderMasters(allMasters);
+        }
+        
+        showResults(isFavorite ? 'Мастер удален из избранного' : 'Мастер добавлен в избранное', 'success');
+        
+        // Don't reload immediately - let user see the change
+        // The state will be synced on next page load or manual refresh
+        // This prevents the issue where favorite gets added then immediately removed
+    } catch (error) {
+        console.error('Ошибка обновления избранного:', error);
+        showResults(`Ошибка: ${error.message}`, 'error');
+    }
+}
+
+// Filter by favorites
+let showOnlyFavorites = false;
+function toggleFavoritesFilter() {
+    showOnlyFavorites = !showOnlyFavorites;
+    const button = document.getElementById('favoritesFilterBtn');
+    if (button) {
+        button.style.background = showOnlyFavorites ? 'var(--primary)' : '#6b7280';
+    }
+    
+    if (showOnlyFavorites) {
+        const favoriteMasters = allMasters.filter(m => m.is_favorite);
+        renderMasters(favoriteMasters);
+    } else {
+        renderMasters(allMasters);
+    }
+}
+
 function filterMasters() {
     const searchTerm = document.getElementById('master-search').value.toLowerCase();
-    const filteredMasters = allMasters.filter(master => 
+    let filteredMasters = allMasters.filter(master => 
         master.name.toLowerCase().includes(searchTerm) ||
         master.specialization.toLowerCase().includes(searchTerm) ||
         (master.address && master.address.toLowerCase().includes(searchTerm))
     );
+    
+    // Apply favorites filter if active
+    if (showOnlyFavorites) {
+        filteredMasters = filteredMasters.filter(m => m.is_favorite);
+    }
     
     console.log(`Filtered ${allMasters.length} masters to ${filteredMasters.length} results`);
     renderMasters(filteredMasters);

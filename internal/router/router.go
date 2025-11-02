@@ -33,6 +33,16 @@ func SetupRouter(h *handlers.Handlers) *gin.Engine {
 			user.GET("/profile", h.GetUserProfile)
 			user.PUT("/profile", h.UpdateUserProfile)
 			user.POST("/photo", h.UploadProfilePhoto)
+			user.GET("/subscription", h.GetUserSubscription)
+			user.PUT("/subscription", h.UpdateUserSubscription)
+			user.POST("/subscription/trial", h.StartTrial)
+			user.GET("/cars", h.GetUserCars)
+			user.POST("/cars", h.CreateUserCar)
+			user.PUT("/cars/:id", h.UpdateUserCar)
+			user.DELETE("/cars/:id", h.DeleteUserCar)
+			user.GET("/guarantees", h.GetUserGuarantees)
+			user.GET("/notifications", h.GetUserNotifications)
+			user.PUT("/notifications/:id/read", h.MarkNotificationRead)
 		}
 
 		// Master profile
@@ -53,6 +63,7 @@ func SetupRouter(h *handlers.Handlers) *gin.Engine {
 			master.PUT("/payment-info", h.UpdateMasterPaymentInfo)
 			master.GET("/reviews", h.GetMasterReviews)
 			master.POST("/reviews", h.CreateReview)
+			master.GET("/notifications", h.GetMasterNotifications)
 		}
 
 		// Categories
@@ -90,6 +101,15 @@ func SetupRouter(h *handlers.Handlers) *gin.Engine {
 			masters.GET("/:id/reviews", h.GetMasterReviews)
 			masters.GET("/:id/schedule", h.GetMasterSchedule)
 			masters.GET("/:id/available-slots", h.GetAvailableSlots)
+			masters.GET("/:id/verification-status", h.GetMasterVerificationStatus)
+		}
+
+		// Favorite Masters
+		favorites := v1.Group("/favorites")
+		{
+			favorites.GET("", h.GetFavoriteMasters)
+			favorites.POST("", h.AddFavoriteMaster)
+			favorites.DELETE("/:id", h.RemoveFavoriteMaster)
 		}
 
 		// Reviews

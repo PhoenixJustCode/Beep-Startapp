@@ -4,6 +4,7 @@ import (
 	"beep-backend/internal/models"
 	"database/sql"
 	"fmt"
+	"sort"
 	"time"
 )
 
@@ -26,8 +27,12 @@ func (r *Repository) GetAllCategories() ([]models.Category, error) {
 	var categories []models.Category
 	for rows.Next() {
 		var cat models.Category
-		if err := rows.Scan(&cat.ID, &cat.Name, &cat.Description, &cat.CreatedAt); err != nil {
+		var description sql.NullString
+		if err := rows.Scan(&cat.ID, &cat.Name, &description, &cat.CreatedAt); err != nil {
 			return nil, err
+		}
+		if description.Valid {
+			cat.Description = description.String
 		}
 		categories = append(categories, cat)
 	}
@@ -36,10 +41,14 @@ func (r *Repository) GetAllCategories() ([]models.Category, error) {
 
 func (r *Repository) GetCategoryByID(id int) (*models.Category, error) {
 	var cat models.Category
+	var description sql.NullString
 	err := r.db.QueryRow("SELECT id, name, description, created_at FROM categories WHERE id = $1", id).
-		Scan(&cat.ID, &cat.Name, &cat.Description, &cat.CreatedAt)
+		Scan(&cat.ID, &cat.Name, &description, &cat.CreatedAt)
 	if err != nil {
 		return nil, err
+	}
+	if description.Valid {
+		cat.Description = description.String
 	}
 	return &cat, nil
 }
@@ -55,8 +64,12 @@ func (r *Repository) GetAllServices() ([]models.Service, error) {
 	var services []models.Service
 	for rows.Next() {
 		var srv models.Service
-		if err := rows.Scan(&srv.ID, &srv.CategoryID, &srv.Name, &srv.Description, &srv.BasePrice, &srv.MinPrice, &srv.MaxPrice, &srv.DurationMinutes, &srv.CreatedAt); err != nil {
+		var description sql.NullString
+		if err := rows.Scan(&srv.ID, &srv.CategoryID, &srv.Name, &description, &srv.BasePrice, &srv.MinPrice, &srv.MaxPrice, &srv.DurationMinutes, &srv.CreatedAt); err != nil {
 			return nil, err
+		}
+		if description.Valid {
+			srv.Description = description.String
 		}
 		services = append(services, srv)
 	}
@@ -73,8 +86,12 @@ func (r *Repository) GetServicesByCategory(categoryID int) ([]models.Service, er
 	var services []models.Service
 	for rows.Next() {
 		var srv models.Service
-		if err := rows.Scan(&srv.ID, &srv.CategoryID, &srv.Name, &srv.Description, &srv.BasePrice, &srv.MinPrice, &srv.MaxPrice, &srv.DurationMinutes, &srv.CreatedAt); err != nil {
+		var description sql.NullString
+		if err := rows.Scan(&srv.ID, &srv.CategoryID, &srv.Name, &description, &srv.BasePrice, &srv.MinPrice, &srv.MaxPrice, &srv.DurationMinutes, &srv.CreatedAt); err != nil {
 			return nil, err
+		}
+		if description.Valid {
+			srv.Description = description.String
 		}
 		services = append(services, srv)
 	}
@@ -83,10 +100,14 @@ func (r *Repository) GetServicesByCategory(categoryID int) ([]models.Service, er
 
 func (r *Repository) GetServiceByID(id int) (*models.Service, error) {
 	var srv models.Service
+	var description sql.NullString
 	err := r.db.QueryRow("SELECT id, category_id, name, description, base_price, min_price, max_price, duration_minutes, created_at FROM services WHERE id = $1", id).
-		Scan(&srv.ID, &srv.CategoryID, &srv.Name, &srv.Description, &srv.BasePrice, &srv.MinPrice, &srv.MaxPrice, &srv.DurationMinutes, &srv.CreatedAt)
+		Scan(&srv.ID, &srv.CategoryID, &srv.Name, &description, &srv.BasePrice, &srv.MinPrice, &srv.MaxPrice, &srv.DurationMinutes, &srv.CreatedAt)
 	if err != nil {
 		return nil, err
+	}
+	if description.Valid {
+		srv.Description = description.String
 	}
 	return &srv, nil
 }
@@ -223,23 +244,36 @@ func (r *Repository) UpdateUserProfile(userID int, name, email, phone string) er
 
 // Masters
 func (r *Repository) GetAllMasters() ([]models.Master, error) {
-	rows, err := r.db.Query("SELECT id, name, email, phone, specialization, rating, photo_url, location_lat, location_lng, address, created_at, updated_at FROM masters ORDER BY rating DESC")
+	// Select all masters and deduplicate by id in Go
+	// Remove ORDER BY temporarily to debug
+	rows, err := r.db.Query(`
+		SELECT id, user_id, name, email, phone, specialization, rating, photo_url, 
+			location_lat, location_lng, address, created_at, updated_at 
+		FROM masters 
+		ORDER BY id ASC
+	`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var masters []models.Master
+	// Use map to deduplicate by id
+	masterMap := make(map[int]models.Master)
+
 	for rows.Next() {
 		var master models.Master
 		var specialization, photoURL, address sql.NullString
 		var rating sql.NullFloat64
 		var locationLat, locationLng sql.NullFloat64
 
-		if err := rows.Scan(&master.ID, &master.Name, &master.Email, &master.Phone,
+		var userID sql.NullInt64
+		if err := rows.Scan(&master.ID, &userID, &master.Name, &master.Email, &master.Phone,
 			&specialization, &rating, &photoURL, &locationLat, &locationLng,
 			&address, &master.CreatedAt, &master.UpdatedAt); err != nil {
 			return nil, err
+		}
+		if userID.Valid {
+			master.UserID = int(userID.Int64)
 		}
 
 		// Handle nullable fields
@@ -262,8 +296,26 @@ func (r *Repository) GetAllMasters() ([]models.Master, error) {
 			master.Address = address.String
 		}
 
+		// Only add if we haven't seen this ID before (keeps first occurrence)
+		if _, exists := masterMap[master.ID]; !exists {
+			masterMap[master.ID] = master // Store value, not pointer
+		}
+	}
+
+	// Convert map to slice
+	masters := make([]models.Master, 0, len(masterMap))
+	for _, master := range masterMap {
 		masters = append(masters, master)
 	}
+
+	// Sort by rating descending, then by id ascending
+	sort.Slice(masters, func(i, j int) bool {
+		if masters[i].Rating != masters[j].Rating {
+			return masters[i].Rating > masters[j].Rating
+		}
+		return masters[i].ID < masters[j].ID
+	})
+
 	return masters, nil
 }
 
@@ -802,4 +854,382 @@ func (r *Repository) CreateReview(masterID, userID, rating int, comment string) 
 		return nil, err
 	}
 	return &review, nil
+}
+
+// Master Verification Methods
+
+// CheckMasterVerificationStatus checks if a master is verified based on criteria
+func (r *Repository) CheckMasterVerificationStatus(masterID int) (bool, int, int, error) {
+	var reviewCount, workCount int
+	var rating float64
+
+	// Count reviews
+	err := r.db.QueryRow("SELECT COUNT(*) FROM reviews WHERE master_id = $1", masterID).Scan(&reviewCount)
+	if err != nil {
+		return false, 0, 0, err
+	}
+
+	// Count works
+	err = r.db.QueryRow("SELECT COUNT(*) FROM master_works WHERE master_id = $1", masterID).Scan(&workCount)
+	if err != nil {
+		return false, 0, 0, err
+	}
+
+	// Get rating
+	err = r.db.QueryRow("SELECT rating FROM masters WHERE id = $1", masterID).Scan(&rating)
+	if err != nil {
+		return false, 0, 0, err
+	}
+
+	// Check verification criteria: 3+ reviews OR rating > 4 OR works > 2
+	isVerified := reviewCount >= 3 || rating > 4.0 || workCount > 2
+
+	return isVerified, reviewCount, workCount, nil
+}
+
+// Subscription Methods
+
+// GetUserSubscription gets subscription for a user
+func (r *Repository) GetUserSubscription(userID int) (*models.Subscription, error) {
+	var sub models.Subscription
+	var trialStartDate, trialEndDate sql.NullTime
+
+	err := r.db.QueryRow(`
+		SELECT id, user_id, plan, trial_start_date, trial_end_date, created_at, updated_at
+		FROM user_subscriptions WHERE user_id = $1
+	`, userID).Scan(&sub.ID, &sub.UserID, &sub.Plan, &trialStartDate, &trialEndDate, &sub.CreatedAt, &sub.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// Create basic subscription if doesn't exist
+			created, createErr := r.CreateUserSubscription(userID, "basic")
+			if createErr != nil {
+				// If creation fails, return a default subscription
+				return &models.Subscription{
+					ID:        0,
+					UserID:    userID,
+					Plan:      "basic",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				}, nil
+			}
+			return created, nil
+		}
+		return nil, err
+	}
+
+	if trialStartDate.Valid {
+		sub.TrialStartDate = &trialStartDate.Time
+	}
+	if trialEndDate.Valid {
+		sub.TrialEndDate = &trialEndDate.Time
+	}
+
+	return &sub, nil
+}
+
+// CreateUserSubscription creates a subscription for a user
+func (r *Repository) CreateUserSubscription(userID int, plan string) (*models.Subscription, error) {
+	var sub models.Subscription
+	var trialStartDate, trialEndDate sql.NullTime
+
+	err := r.db.QueryRow(`
+		INSERT INTO user_subscriptions (user_id, plan, created_at, updated_at)
+		VALUES ($1, $2, NOW(), NOW())
+		ON CONFLICT (user_id) DO UPDATE SET plan = EXCLUDED.plan, updated_at = NOW()
+		RETURNING id, user_id, plan, trial_start_date, trial_end_date, created_at, updated_at
+	`, userID, plan).Scan(&sub.ID, &sub.UserID, &sub.Plan, &trialStartDate, &trialEndDate, &sub.CreatedAt, &sub.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	if trialStartDate.Valid {
+		sub.TrialStartDate = &trialStartDate.Time
+	}
+	if trialEndDate.Valid {
+		sub.TrialEndDate = &trialEndDate.Time
+	}
+
+	return &sub, nil
+}
+
+// StartTrial starts a trial period for a user (7 days)
+func (r *Repository) StartTrial(userID int) (*models.Subscription, error) {
+	trialStart := time.Now()
+	trialEnd := trialStart.AddDate(0, 0, 7) // 7 days trial
+
+	var sub models.Subscription
+	var trialStartDate, trialEndDate sql.NullTime
+
+	err := r.db.QueryRow(`
+		INSERT INTO user_subscriptions (user_id, plan, trial_start_date, trial_end_date, created_at, updated_at)
+		VALUES ($1, 'trial', $2, $3, NOW(), NOW())
+		ON CONFLICT (user_id) DO UPDATE SET 
+			plan = 'trial',
+			trial_start_date = EXCLUDED.trial_start_date,
+			trial_end_date = EXCLUDED.trial_end_date,
+			updated_at = NOW()
+		RETURNING id, user_id, plan, trial_start_date, trial_end_date, created_at, updated_at
+	`, userID, trialStart, trialEnd).Scan(&sub.ID, &sub.UserID, &sub.Plan, &trialStartDate, &trialEndDate, &sub.CreatedAt, &sub.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	if trialStartDate.Valid {
+		sub.TrialStartDate = &trialStartDate.Time
+	}
+	if trialEndDate.Valid {
+		sub.TrialEndDate = &trialEndDate.Time
+	}
+
+	return &sub, nil
+}
+
+// UpdateUserSubscription updates subscription plan
+func (r *Repository) UpdateUserSubscription(userID int, plan string) error {
+	_, err := r.db.Exec(`
+		INSERT INTO user_subscriptions (user_id, plan, created_at, updated_at)
+		VALUES ($1, $2, NOW(), NOW())
+		ON CONFLICT (user_id) DO UPDATE SET 
+			plan = EXCLUDED.plan,
+			updated_at = NOW(),
+			trial_start_date = CASE WHEN EXCLUDED.plan != 'trial' THEN NULL ELSE trial_start_date END,
+			trial_end_date = CASE WHEN EXCLUDED.plan != 'trial' THEN NULL ELSE trial_end_date END
+	`, userID, plan)
+	return err
+}
+
+// Favorite Masters Methods
+
+// AddFavoriteMaster adds a master to favorites
+func (r *Repository) AddFavoriteMaster(userID, masterID int) error {
+	_, err := r.db.Exec(`
+		INSERT INTO favorite_masters (user_id, master_id, created_at)
+		VALUES ($1, $2, NOW())
+		ON CONFLICT (user_id, master_id) DO NOTHING
+	`, userID, masterID)
+	return err
+}
+
+// RemoveFavoriteMaster removes a master from favorites
+func (r *Repository) RemoveFavoriteMaster(userID, masterID int) error {
+	_, err := r.db.Exec("DELETE FROM favorite_masters WHERE user_id = $1 AND master_id = $2", userID, masterID)
+	return err
+}
+
+// GetFavoriteMasters gets all favorite masters for a user
+func (r *Repository) GetFavoriteMasters(userID int) ([]models.Master, error) {
+	rows, err := r.db.Query(`
+		SELECT m.id, m.user_id, m.name, m.email, m.phone, m.specialization, m.rating, m.photo_url,
+		       m.location_lat, m.location_lng, m.address, m.created_at, m.updated_at
+		FROM favorite_masters fm
+		JOIN masters m ON fm.master_id = m.id
+		WHERE fm.user_id = $1
+		ORDER BY fm.created_at DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var masters []models.Master
+	for rows.Next() {
+		var m models.Master
+		var photoURL sql.NullString
+		if err := rows.Scan(&m.ID, &m.UserID, &m.Name, &m.Email, &m.Phone, &m.Specialization,
+			&m.Rating, &photoURL, &m.LocationLat, &m.LocationLng, &m.Address, &m.CreatedAt, &m.UpdatedAt); err != nil {
+			return nil, err
+		}
+		if photoURL.Valid {
+			m.PhotoURL = photoURL.String
+		}
+		masters = append(masters, m)
+	}
+	return masters, nil
+}
+
+// IsFavoriteMaster checks if a master is in user's favorites
+func (r *Repository) IsFavoriteMaster(userID, masterID int) (bool, error) {
+	var count int
+	err := r.db.QueryRow(`
+		SELECT COUNT(*) FROM favorite_masters WHERE user_id = $1 AND master_id = $2
+	`, userID, masterID).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// User Cars Methods
+
+// GetUserCars gets all cars for a user
+func (r *Repository) GetUserCars(userID int) ([]models.UserCar, error) {
+	rows, err := r.db.Query(`
+		SELECT id, user_id, name, year, comment, created_at, updated_at
+		FROM user_cars WHERE user_id = $1 ORDER BY created_at DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var cars []models.UserCar
+	for rows.Next() {
+		var car models.UserCar
+		if err := rows.Scan(&car.ID, &car.UserID, &car.Name, &car.Year, &car.Comment, &car.CreatedAt, &car.UpdatedAt); err != nil {
+			return nil, err
+		}
+		cars = append(cars, car)
+	}
+	return cars, nil
+}
+
+// CreateUserCar creates a new car for a user
+func (r *Repository) CreateUserCar(userID int, name string, year int, comment string) (*models.UserCar, error) {
+	var car models.UserCar
+	err := r.db.QueryRow(`
+		INSERT INTO user_cars (user_id, name, year, comment, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, NOW(), NOW())
+		RETURNING id, user_id, name, year, comment, created_at, updated_at
+	`, userID, name, year, comment).
+		Scan(&car.ID, &car.UserID, &car.Name, &car.Year, &car.Comment, &car.CreatedAt, &car.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &car, nil
+}
+
+// UpdateUserCar updates a car
+func (r *Repository) UpdateUserCar(carID, userID int, name string, year int, comment string) error {
+	_, err := r.db.Exec(`
+		UPDATE user_cars SET name = $1, year = $2, comment = $3, updated_at = NOW()
+		WHERE id = $4 AND user_id = $5
+	`, name, year, comment, carID, userID)
+	return err
+}
+
+// DeleteUserCar deletes a car
+func (r *Repository) DeleteUserCar(carID, userID int) error {
+	_, err := r.db.Exec("DELETE FROM user_cars WHERE id = $1 AND user_id = $2", carID, userID)
+	return err
+}
+
+// Guarantees Methods
+
+// GetUserGuarantees gets all active guarantees for a user (not expired)
+func (r *Repository) GetUserGuarantees(userID int) ([]models.Guarantee, error) {
+	rows, err := r.db.Query(`
+		SELECT id, user_id, appointment_id, service_name, master_name, service_date, expiry_date, created_at
+		FROM guarantees
+		WHERE user_id = $1 AND expiry_date >= CURRENT_DATE
+		ORDER BY expiry_date ASC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var guarantees []models.Guarantee
+	for rows.Next() {
+		var g models.Guarantee
+		if err := rows.Scan(&g.ID, &g.UserID, &g.AppointmentID, &g.ServiceName, &g.MasterName,
+			&g.ServiceDate, &g.ExpiryDate, &g.CreatedAt); err != nil {
+			return nil, err
+		}
+		guarantees = append(guarantees, g)
+	}
+	return guarantees, nil
+}
+
+// CreateGuarantee creates a guarantee for an appointment (14 days from service date)
+func (r *Repository) CreateGuarantee(userID, appointmentID int, serviceName, masterName string, serviceDate time.Time) (*models.Guarantee, error) {
+	expiryDate := serviceDate.AddDate(0, 0, 14) // 14 days guarantee
+	var g models.Guarantee
+	err := r.db.QueryRow(`
+		INSERT INTO guarantees (user_id, appointment_id, service_name, master_name, service_date, expiry_date, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW())
+		RETURNING id, user_id, appointment_id, service_name, master_name, service_date, expiry_date, created_at
+	`, userID, appointmentID, serviceName, masterName, serviceDate, expiryDate).
+		Scan(&g.ID, &g.UserID, &g.AppointmentID, &g.ServiceName, &g.MasterName, &g.ServiceDate, &g.ExpiryDate, &g.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &g, nil
+}
+
+// Notifications Methods
+
+// GetUserNotifications gets all notifications for a user
+func (r *Repository) GetUserNotifications(userID int) ([]models.Notification, error) {
+	rows, err := r.db.Query(`
+		SELECT id, user_id, type, title, message, related_id, is_read, created_at
+		FROM notifications
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notifications []models.Notification
+	for rows.Next() {
+		var n models.Notification
+		if err := rows.Scan(&n.ID, &n.UserID, &n.Type, &n.Title, &n.Message, &n.RelatedID, &n.IsRead, &n.CreatedAt); err != nil {
+			return nil, err
+		}
+		notifications = append(notifications, n)
+	}
+	return notifications, nil
+}
+
+// CreateNotification creates a notification
+func (r *Repository) CreateNotification(userID int, notificationType, title, message string, relatedID int) (*models.Notification, error) {
+	var n models.Notification
+	err := r.db.QueryRow(`
+		INSERT INTO notifications (user_id, type, title, message, related_id, is_read, created_at)
+		VALUES ($1, $2, $3, $4, $5, false, NOW())
+		RETURNING id, user_id, type, title, message, related_id, is_read, created_at
+	`, userID, notificationType, title, message, relatedID).
+		Scan(&n.ID, &n.UserID, &n.Type, &n.Title, &n.Message, &n.RelatedID, &n.IsRead, &n.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &n, nil
+}
+
+// MarkNotificationRead marks a notification as read
+func (r *Repository) MarkNotificationRead(notificationID, userID int) error {
+	_, err := r.db.Exec(`
+		UPDATE notifications SET is_read = true
+		WHERE id = $1 AND user_id = $2
+	`, notificationID, userID)
+	return err
+}
+
+// GetMasterAppointmentsForNotifications gets appointments for a master (for notifications)
+func (r *Repository) GetMasterAppointmentsForNotifications(masterID int) ([]models.AppointmentWithDetails, error) {
+	rows, err := r.db.Query(`
+		SELECT a.id, a.user_id, a.master_id, a.service_id, a.date, a.time, a.status, a.comment,
+		       a.created_at, a.updated_at, s.name as service_name, u.name as master_name
+		FROM appointments a
+		JOIN services s ON a.service_id = s.id
+		JOIN users u ON a.user_id = u.id
+		WHERE a.master_id = $1 AND a.status IN ('pending', 'confirmed')
+		ORDER BY a.date DESC, a.time DESC
+	`, masterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var appointments []models.AppointmentWithDetails
+	for rows.Next() {
+		var apt models.AppointmentWithDetails
+		if err := rows.Scan(&apt.ID, &apt.UserID, &apt.MasterID, &apt.ServiceID, &apt.Date, &apt.Time,
+			&apt.Status, &apt.Comment, &apt.CreatedAt, &apt.UpdatedAt, &apt.ServiceName, &apt.MasterName); err != nil {
+			return nil, err
+		}
+		appointments = append(appointments, apt)
+	}
+	return appointments, nil
 }

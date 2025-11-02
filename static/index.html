@@ -116,9 +116,9 @@
                             <span class="arrow">▼</span>
                         </div>
                         <div class="dropdown-body" id="master-dropdown-body" style="display: none;">
-                            <div class="dropdown-search">
-                                <input type="text" id="master-search" placeholder="Поиск мастеров..." onkeyup="filterMasters()">
-                                <span class="search-icon">🔍</span>
+                            <div class="dropdown-search" style="display: flex; gap: 8px; margin-bottom: 10px; align-items: center;">
+                                <input type="text" id="master-search" placeholder="Поиск мастеров..." onkeyup="filterMasters()" style="flex: 1; padding: 12px 15px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; width: 100%;">
+                                <button id="favoritesFilterBtn" onclick="toggleFavoritesFilter()" style="padding: 8px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;" title="Показать только избранные">⭐</button>
                             </div>
                             <div id="masters-container" class="masters-grid-dropdown">
                                 <div class="loading">Загрузка мастеров...</div>

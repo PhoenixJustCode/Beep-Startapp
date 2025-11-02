@@ -4,7 +4,11 @@ const API_URL = window.location.origin + '/api/v1';
 window.onload = function() {
     loadUserProfile();
     loadUserAppointments();
-    loadMasterProfile(); // Add this line
+    loadMasterProfile();
+    loadUserSubscription();
+    loadUserCars();
+    loadUserGuarantees();
+    loadUserNotifications();
 };
 
 function openTab(evt, tabName) {
@@ -579,6 +583,8 @@ async function loadMasterProfile() {
         loadMasterWorks();
         loadMasterPaymentInfo();
         loadMasterReviews();
+        loadMasterVerificationStatus(master.id);
+        loadMasterNotifications();
         
     } catch (error) {
         console.error('Ошибка загрузки профиля мастера:', error);
@@ -1393,6 +1399,470 @@ async function deleteWork(workId) {
     } catch (error) {
         console.error('Ошибка удаления работы:', error);
         showMessage(`Ошибка удаления работы: ${error.message}`, 'error');
+    }
+}
+
+// New Feature Functions
+
+// Load master verification status
+async function loadMasterVerificationStatus(masterId) {
+    try {
+        const token = localStorage.getItem('token');
+        const headers = {};
+        if (token) {
+            headers['Authorization'] = 'Bearer ' + token;
+        }
+        
+        const response = await fetch(`${API_URL}/masters/${masterId}/verification-status`, { headers });
+        const status = await response.json();
+        
+        const statusElement = document.getElementById('masterStatusText');
+        if (status.is_verified) {
+            statusElement.textContent = `✓ Проверенный мастер (Отзывов: ${status.review_count}, Работ: ${status.work_count})`;
+            statusElement.style.color = '#10b981';
+        } else {
+            statusElement.textContent = `Обычный мастер (Отзывов: ${status.review_count}, Работ: ${status.work_count})`;
+            statusElement.style.color = '#64748b';
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки статуса мастера:', error);
+    }
+}
+
+// Load user subscription
+async function loadUserSubscription() {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        const response = await fetch(`${API_URL}/user/subscription`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Не удалось загрузить подписку');
+        }
+        
+        const subscription = await response.json();
+        const infoElement = document.getElementById('subscriptionInfo');
+        
+        const planName = subscription.plan === 'premium' ? 'Премиум' : subscription.plan === 'trial' ? 'Пробный период' : 'Базовый';
+        const planColor = subscription.plan === 'premium' ? '#f59e0b' : subscription.plan === 'trial' ? '#10b981' : '#64748b';
+        
+        let trialInfo = '';
+        if (subscription.plan === 'trial' && subscription.trial_end_date) {
+            const expiryDate = new Date(subscription.trial_end_date);
+            const now = new Date();
+            const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+            trialInfo = `<p style="margin: 5px 0 0 0; color: #64748b; font-size: 14px;">Осталось дней: ${daysLeft > 0 ? daysLeft : 0}</p>`;
+        }
+        
+        infoElement.innerHTML = `
+            <div style="padding: 15px; background: ${subscription.plan === 'premium' ? '#fef3c7' : subscription.plan === 'trial' ? '#d1fae5' : '#f1f5f9'}; border-radius: 8px; border-left: 4px solid ${planColor};">
+                <p style="margin: 0; font-size: 18px; font-weight: 600; color: ${planColor};">
+                    Текущий план: ${planName}
+                </p>
+                ${trialInfo}
+                ${subscription.plan === 'basic' ? '<p style="margin: 5px 0 0 0; color: #64748b; font-size: 14px;">Перейдите на Премиум, чтобы получить все преимущества!</p>' : ''}
+            </div>
+        `;
+        
+        // Show trial info in modal if active
+        const trialInfoEl = document.getElementById('trialInfo');
+        const trialExpiryText = document.getElementById('trialExpiryText');
+        if (subscription.plan === 'trial' && subscription.trial_end_date) {
+            trialInfoEl.style.display = 'block';
+            const expiryDate = new Date(subscription.trial_end_date);
+            const expiryStr = expiryDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+            trialExpiryText.textContent = `Пробный период действует до ${expiryStr}`;
+        } else {
+            trialInfoEl.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки подписки:', error);
+    }
+}
+
+// Show subscription modal
+function showSubscriptionModal() {
+    document.getElementById('subscriptionModal').style.display = 'flex';
+    loadUserSubscription();
+}
+
+// Close subscription modal
+function closeSubscriptionModal() {
+    document.getElementById('subscriptionModal').style.display = 'none';
+}
+
+// Update subscription
+async function updateSubscription(plan) {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            showMessage('Необходима авторизация', 'error');
+            return;
+        }
+        
+        const response = await fetch(`${API_URL}/user/subscription`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ plan })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Не удалось обновить подписку');
+        }
+        
+        showMessage('Подписка успешно обновлена!', 'success');
+        loadUserSubscription();
+        closeSubscriptionModal();
+    } catch (error) {
+        console.error('Ошибка обновления подписки:', error);
+        showMessage(`Ошибка обновления подписки: ${error.message}`, 'error');
+    }
+}
+
+// Start trial
+async function startTrial() {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            showMessage('Необходима авторизация', 'error');
+            return;
+        }
+        
+        const response = await fetch(`${API_URL}/user/subscription/trial`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Не удалось начать пробный период');
+        }
+        
+        showMessage('Пробный период на 7 дней активирован!', 'success');
+        loadUserSubscription();
+        setTimeout(() => {
+            closeSubscriptionModal();
+        }, 1500);
+    } catch (error) {
+        console.error('Ошибка начала пробного периода:', error);
+        showMessage(`Ошибка: ${error.message}`, 'error');
+    }
+}
+
+// Load user cars
+async function loadUserCars() {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        const response = await fetch(`${API_URL}/user/cars`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Не удалось загрузить автомобили');
+        }
+        
+        const cars = await response.json();
+        const container = document.getElementById('userCars');
+        
+        if (cars.length === 0) {
+            container.innerHTML = '<p style="color: #999; grid-column: 1/-1; text-align: center; padding: 20px;">У вас пока нет добавленных автомобилей</p>';
+            return;
+        }
+        
+        container.innerHTML = '';
+        cars.forEach(car => {
+            const carDiv = document.createElement('div');
+            carDiv.style.cssText = 'background: #f8f9fa; border-radius: 8px; padding: 15px; border: 1px solid #e2e8f0;';
+            carDiv.innerHTML = `
+                <h3 style="margin: 0 0 10px 0; color: var(--primary);">${car.name}</h3>
+                ${car.year ? `<p style="margin: 5px 0; color: #666;">Год: ${car.year}</p>` : ''}
+                ${car.comment ? `<p style="margin: 5px 0; color: #666;">${car.comment}</p>` : ''}
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button onclick="editCar(${car.id})" style="flex: 1; padding: 8px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">Редактировать</button>
+                    <button onclick="deleteCar(${car.id})" style="flex: 1; padding: 8px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">Удалить</button>
+                </div>
+            `;
+            container.appendChild(carDiv);
+        });
+    } catch (error) {
+        console.error('Ошибка загрузки автомобилей:', error);
+        document.getElementById('userCars').innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки автомобилей</p>';
+    }
+}
+
+// Show add car modal
+function showAddCarModal() {
+    document.getElementById('carId').value = '';
+    document.getElementById('carName').value = '';
+    document.getElementById('carYear').value = '';
+    document.getElementById('carComment').value = '';
+    document.getElementById('carModalTitle').textContent = 'Добавить авто';
+    document.getElementById('carModal').style.display = 'flex';
+}
+
+// Close car modal
+function closeCarModal() {
+    document.getElementById('carModal').style.display = 'none';
+}
+
+// Save car
+async function saveCar(event) {
+    event.preventDefault();
+    
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            showMessage('Необходима авторизация', 'error');
+            return;
+        }
+        
+        const carId = document.getElementById('carId').value;
+        const name = document.getElementById('carName').value;
+        const year = parseInt(document.getElementById('carYear').value) || 0;
+        const comment = document.getElementById('carComment').value;
+        
+        const url = carId ? `${API_URL}/user/cars/${carId}` : `${API_URL}/user/cars`;
+        const method = carId ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ name, year, comment })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Не удалось сохранить автомобиль');
+        }
+        
+        showMessage('Автомобиль успешно сохранен!', 'success');
+        closeCarModal();
+        loadUserCars();
+    } catch (error) {
+        console.error('Ошибка сохранения автомобиля:', error);
+        showMessage(`Ошибка сохранения автомобиля: ${error.message}`, 'error');
+    }
+}
+
+// Edit car
+async function editCar(carId) {
+    try {
+        const token = localStorage.getItem('token');
+        const cars = await fetch(`${API_URL}/user/cars`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        }).then(r => r.json());
+        
+        const car = cars.find(c => c.id === carId);
+        if (!car) {
+            showMessage('Автомобиль не найден', 'error');
+            return;
+        }
+        
+        document.getElementById('carId').value = car.id;
+        document.getElementById('carName').value = car.name;
+        document.getElementById('carYear').value = car.year || '';
+        document.getElementById('carComment').value = car.comment || '';
+        document.getElementById('carModalTitle').textContent = 'Редактировать авто';
+        document.getElementById('carModal').style.display = 'flex';
+    } catch (error) {
+        console.error('Ошибка редактирования автомобиля:', error);
+        showMessage(`Ошибка редактирования автомобиля: ${error.message}`, 'error');
+    }
+}
+
+// Delete car
+async function deleteCar(carId) {
+    if (!confirm('Вы точно хотите удалить этот автомобиль?')) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/user/cars/${carId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Не удалось удалить автомобиль');
+        }
+        
+        showMessage('Автомобиль успешно удален!', 'success');
+        loadUserCars();
+    } catch (error) {
+        console.error('Ошибка удаления автомобиля:', error);
+        showMessage(`Ошибка удаления автомобиля: ${error.message}`, 'error');
+    }
+}
+
+// Load user guarantees
+async function loadUserGuarantees() {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        const response = await fetch(`${API_URL}/user/guarantees`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Не удалось загрузить гарантии');
+        }
+        
+        const guarantees = await response.json();
+        const container = document.getElementById('userGuarantees');
+        
+        if (guarantees.length === 0) {
+            container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">У вас пока нет активных гарантий</p>';
+            return;
+        }
+        
+        container.innerHTML = '';
+        guarantees.forEach(guarantee => {
+            const guaranteeDiv = document.createElement('div');
+            guaranteeDiv.style.cssText = 'background: #f0f9ff; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-left: 4px solid var(--primary);';
+            
+            const serviceDate = new Date(guarantee.service_date).toLocaleDateString('ru-RU');
+            const expiryDate = new Date(guarantee.expiry_date).toLocaleDateString('ru-RU');
+            
+            guaranteeDiv.innerHTML = `
+                <h3 style="margin: 0 0 10px 0; color: var(--primary);">${guarantee.service_name}</h3>
+                ${guarantee.master_name ? `<p style="margin: 5px 0; color: #666;">Мастер: ${guarantee.master_name}</p>` : ''}
+                <p style="margin: 5px 0; color: #666;">Дата услуги: ${serviceDate}</p>
+                <p style="margin: 5px 0; color: #10b981; font-weight: 600;">Гарантия действует до: ${expiryDate}</p>
+            `;
+            container.appendChild(guaranteeDiv);
+        });
+    } catch (error) {
+        console.error('Ошибка загрузки гарантий:', error);
+        document.getElementById('userGuarantees').innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки гарантий</p>';
+    }
+}
+
+// Load user notifications
+async function loadUserNotifications() {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        const response = await fetch(`${API_URL}/user/notifications`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Не удалось загрузить уведомления');
+        }
+        
+        const notifications = await response.json();
+        const container = document.getElementById('userNotifications');
+        
+        if (notifications.length === 0) {
+            container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">У вас пока нет уведомлений</p>';
+            return;
+        }
+        
+        container.innerHTML = '';
+        notifications.forEach(notification => {
+            const notifDiv = document.createElement('div');
+            notifDiv.style.cssText = `background: ${notification.is_read ? '#f8f9fa' : '#e0f2fe'}; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-left: 4px solid ${notification.is_read ? '#94a3b8' : 'var(--primary)'};`;
+            
+            const date = new Date(notification.created_at).toLocaleDateString('ru-RU');
+            
+            notifDiv.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                    <h3 style="margin: 0; color: var(--primary); font-size: 16px;">${notification.title}</h3>
+                    ${!notification.is_read ? '<span style="background: var(--primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px;">Новое</span>' : ''}
+                </div>
+                <p style="margin: 5px 0; color: #666;">${notification.message || ''}</p>
+                <p style="margin: 5px 0 0 0; color: #999; font-size: 12px;">${date}</p>
+            `;
+            
+            if (!notification.is_read) {
+                notifDiv.onclick = () => markNotificationRead(notification.id);
+                notifDiv.style.cursor = 'pointer';
+            }
+            
+            container.appendChild(notifDiv);
+        });
+    } catch (error) {
+        console.error('Ошибка загрузки уведомлений:', error);
+        document.getElementById('userNotifications').innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки уведомлений</p>';
+    }
+}
+
+// Mark notification as read
+async function markNotificationRead(notificationId) {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/user/notifications/${notificationId}/read`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Не удалось отметить уведомление как прочитанное');
+        }
+        
+        loadUserNotifications();
+    } catch (error) {
+        console.error('Ошибка отметки уведомления:', error);
+    }
+}
+
+// Load master notifications
+async function loadMasterNotifications() {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        const response = await fetch(`${API_URL}/master/notifications`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Не удалось загрузить уведомления');
+        }
+        
+        const appointments = await response.json();
+        const container = document.getElementById('masterNotifications');
+        
+        if (appointments.length === 0) {
+            container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">У вас пока нет записей</p>';
+            return;
+        }
+        
+        container.innerHTML = '';
+        appointments.forEach(apt => {
+            const aptDiv = document.createElement('div');
+            aptDiv.style.cssText = 'background: #f0f9ff; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-left: 4px solid var(--primary);';
+            
+            const date = new Date(apt.date).toLocaleDateString('ru-RU');
+            
+            aptDiv.innerHTML = `
+                <h3 style="margin: 0 0 10px 0; color: var(--primary);">Запись #${apt.id}</h3>
+                <p style="margin: 5px 0; color: #666;"><strong>Услуга:</strong> ${apt.service_name}</p>
+                <p style="margin: 5px 0; color: #666;"><strong>Клиент:</strong> ${apt.master_name}</p>
+                <p style="margin: 5px 0; color: #666;"><strong>Дата:</strong> ${date}</p>
+                <p style="margin: 5px 0; color: #666;"><strong>Время:</strong> ${apt.time}</p>
+                <p style="margin: 5px 0; color: #64748b;"><strong>Статус:</strong> ${apt.status}</p>
+                ${apt.comment ? `<p style="margin: 5px 0; color: #666;"><strong>Комментарий:</strong> ${apt.comment}</p>` : ''}
+            `;
+            container.appendChild(aptDiv);
+        });
+    } catch (error) {
+        console.error('Ошибка загрузки уведомлений мастера:', error);
+        document.getElementById('masterNotifications').innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки уведомлений</p>';
     }
 }
 

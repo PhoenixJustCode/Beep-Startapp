@@ -118,7 +118,41 @@
                 <div id="userAppointments" style="max-height: 500px; overflow-y: auto;">
                     <p style="color: #999;">Загрузка...</p>
                 </div>
+            </div>
+
+            <!-- Subscription Card -->
+            <div class="card">
+                <h2>Моя подписка</h2>
+                <div id="subscriptionInfo" style="margin-bottom: 20px;">
+                    <p style="color: #999;">Загрузка...</p>
                 </div>
+                <button onclick="showSubscriptionModal()" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Управление подпиской</button>
+            </div>
+
+            <!-- My Cars Card -->
+            <div class="card">
+                <h2>Мои авто</h2>
+                <button onclick="showAddCarModal()" style="margin-bottom: 20px; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Добавить авто</button>
+                <div id="userCars" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;">
+                    <p style="color: #999;">Загрузка...</p>
+                </div>
+            </div>
+
+            <!-- Guarantees Card -->
+            <div class="card">
+                <h2>Мои гарантии</h2>
+                <div id="userGuarantees" style="max-height: 500px; overflow-y: auto;">
+                    <p style="color: #999;">Загрузка...</p>
+                </div>
+            </div>
+
+            <!-- Notifications Card -->
+            <div class="card">
+                <h2>Уведомления</h2>
+                <div id="userNotifications" style="max-height: 500px; overflow-y: auto;">
+                    <p style="color: #999;">Загрузка...</p>
+                </div>
+            </div>
             
             <!-- Edit Appointment Modal -->
             <div id="editAppointmentModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
@@ -205,6 +239,9 @@
                         👨‍🔧 <span id="displayMasterName">-</span>
                         <span id="masterRating" style="color: #f59e0b; font-size: 24px; margin-left: 10px;">★★★★★</span>
                     </h2>
+                    <div id="masterStatus" style="margin-bottom: 20px; padding: 10px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid var(--primary);">
+                        <p style="margin: 0; font-weight: 600; color: var(--primary);" id="masterStatusText">Загрузка статуса...</p>
+                    </div>
                     
                     <!-- Master Profile Picture -->
                     <div style="text-align: center; margin-bottom: 30px;">
@@ -285,6 +322,14 @@
                    <h2 style="margin-bottom: 20px;">💳 Оплата услуг</h2>
                    <p style="color: #64748b;">Интеграция оплаты в приложении (в разработке)</p>
                    <button style="margin-top: 20px; padding: 10px 20px; background: var(--secondary); color: white; border: none; border-radius: 8px; cursor: pointer;" disabled>Оплатить через приложение</button>
+               </div>
+
+               <!-- Master Notifications Card -->
+               <div class="card">
+                   <h2 style="margin-bottom: 20px;">Уведомления</h2>
+                   <div id="masterNotifications" style="max-height: 500px; overflow-y: auto;">
+                       <p style="color: #999;">Загрузка...</p>
+                   </div>
                </div>
 
                <!-- Delete Master Profile -->
@@ -429,6 +474,60 @@
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
                     <button type="submit" style="flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Сохранить</button>
                     <button type="button" onclick="closeMasterEditModal()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Subscription -->
+    <div id="subscriptionModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 15px; padding: 30px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
+            <h2 style="margin-bottom: 20px;">Моя подписка</h2>
+            <div id="subscriptionDetails" style="margin-bottom: 20px;">
+                <p style="color: #999;">Загрузка...</p>
+            </div>
+            <div id="trialInfo" style="margin-bottom: 20px; padding: 15px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b; display: none;">
+                <p style="margin: 0; font-weight: 600; color: #92400e;">🎁 Пробный период активен!</p>
+                <p style="margin: 5px 0 0 0; color: #78350f; font-size: 14px;" id="trialExpiryText"></p>
+            </div>
+            <div style="margin-top: 20px;">
+                <h3>Преимущества Премиум:</h3>
+                <ul style="list-style: none; padding: 0;">
+                    <li style="padding: 10px; margin: 5px 0; background: #f0f9ff; border-radius: 8px;">✓ Скидки на услуги</li>
+                    <li style="padding: 10px; margin: 5px 0; background: #f0f9ff; border-radius: 8px;">✓ Приоритетная запись</li>
+                    <li style="padding: 10px; margin: 5px 0; background: #f0f9ff; border-radius: 8px;">✓ Неограниченное количество избранных мастеров</li>
+                </ul>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button onclick="startTrial()" style="flex: 1; padding: 12px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">🎁 Начать пробный период</button>
+                <button onclick="updateSubscription('premium')" style="flex: 1; padding: 12px; background: var(--secondary); color: white; border: none; border-radius: 8px; cursor: pointer;">Перейти на Премиум</button>
+                <button onclick="updateSubscription('basic')" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Базовый план</button>
+                <button onclick="closeSubscriptionModal()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add/Edit Car -->
+    <div id="carModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;">
+            <h2 id="carModalTitle">Добавить авто</h2>
+            <form id="carForm" onsubmit="saveCar(event)">
+                <input type="hidden" id="carId">
+                <div class="form-group">
+                    <label>Название машины:</label>
+                    <input type="text" id="carName" required style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
+                </div>
+                <div class="form-group">
+                    <label>Год:</label>
+                    <input type="number" id="carYear" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
+                </div>
+                <div class="form-group">
+                    <label>Комментарий:</label>
+                    <textarea id="carComment" rows="4" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" style="flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Сохранить</button>
+                    <button type="button" onclick="closeCarModal()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Отмена</button>
                 </div>
             </form>
         </div>

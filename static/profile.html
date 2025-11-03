@@ -53,17 +53,17 @@
                     <div class="info-item">
                         <label>Имя:</label>
                         <span id="userName">-</span>
-                        <button class="edit-field-btn" onclick="openEditModal('name')" title="Редактировать имя">И</button>
+                        <button class="edit-field-btn" onclick="openEditModal('name')" title="Редактировать имя">✏️</button>
                     </div>
                     <div class="info-item">
                         <label>Email:</label>
                         <span id="userEmail">-</span>
-                        <button class="edit-field-btn" onclick="openEditModal('email')" title="Редактировать email">И</button>
+                        <button class="edit-field-btn" onclick="openEditModal('email')" title="Редактировать email">✏️</button>
                     </div>
                     <div class="info-item">
                         <label>Телефон:</label>
                         <span id="userPhone">-</span>
-                        <button class="edit-field-btn" onclick="openEditModal('phone')" title="Редактировать телефон">И</button>
+                        <button class="edit-field-btn" onclick="openEditModal('phone')" title="Редактировать телефон">✏️</button>
                     </div>
                     <div class="info-item">
                         <label>Дата регистрации:</label>
@@ -118,7 +118,45 @@
                 <div id="userAppointments" style="max-height: 500px; overflow-y: auto;">
                     <p style="color: #999;">Загрузка...</p>
                 </div>
+            </div>
+
+            <!-- (4) Закомментировано для будущего использования: Подписка и пакеты (6.) -->
+            <!--
+            <div class="card">
+                <h2>Моя подписка</h2>
+                <div id="subscriptionInfo" style="margin-bottom: 20px;">
+                    <p style="color: #999;">Загрузка...</p>
                 </div>
+                <button onclick="showSubscriptionModal()" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Управление подпиской</button>
+            </div>
+            -->
+
+            <!-- My Cars Card -->
+            <div class="card">
+                <h2>Мои авто</h2>
+                <button onclick="showAddCarModal()" style="margin-bottom: 20px; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Добавить авто</button>
+                <div id="userCars" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;">
+                    <p style="color: #999;">Загрузка...</p>
+                </div>
+            </div>
+
+            <!-- (4) Закомментировано для будущего использования: Система гарантий и страхование услуг (5.) -->
+            <!--
+            <div class="card">
+                <h2>Мои гарантии</h2>
+                <div id="userGuarantees" style="max-height: 500px; overflow-y: auto;">
+                    <p style="color: #999;">Загрузка...</p>
+                </div>
+            </div>
+            -->
+
+            <!-- Notifications Card -->
+            <div class="card">
+                <h2>Уведомления</h2>
+                <div id="userNotifications" style="max-height: 500px; overflow-y: auto;">
+                    <p style="color: #999;">Загрузка...</p>
+                </div>
+            </div>
             
             <!-- Edit Appointment Modal -->
             <div id="editAppointmentModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
@@ -174,7 +212,7 @@
                             <input type="text" id="masterName" required style="flex: 1; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;">
                         </div>
                         <div class="info-item">
-                            <label>Email:</label>
+                            <label> Email:</label>
                             <input type="email" id="masterEmail" required style="flex: 1; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;">
                         </div>
                         <div class="info-item">
@@ -205,6 +243,16 @@
                         👨‍🔧 <span id="displayMasterName">-</span>
                         <span id="masterRating" style="color: #f59e0b; font-size: 24px; margin-left: 10px;">★★★★★</span>
                     </h2>
+                    <div id="masterStatus" style="margin-bottom: 20px; padding: 10px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid var(--primary); position: relative;">
+                        <p style="margin: 0; font-weight: 600; color: var(--primary);" id="masterStatusText">Загрузка статуса...</p>
+                        <span id="masterStatusTooltip" style="position: absolute; top: 100%; left: 0; margin-top: 5px; padding: 10px; background: #1e293b; color: white; border-radius: 8px; font-size: 14px; width: 300px; z-index: 1000; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+                            <strong>Как стать проверенным мастером?</strong><br>
+                            Для получения статуса "Проверенный мастер" необходимо выполнить одно из условий:<br>
+                            • Получить 3 или более отзывов от клиентов<br>
+                            • Иметь рейтинг выше 4.0<br>
+                            • Добавить более 2 работ в портфолио
+                        </span>
+                    </div>
                     
                     <!-- Master Profile Picture -->
                     <div style="text-align: center; margin-bottom: 30px;">
@@ -217,7 +265,7 @@
                     
                     <div class="profile-info">
                         <div class="info-item">
-                            <label>Email:</label>
+                            <label>Work -Email:</label>
                             <span id="displayMasterEmail">-</span>
                         </div>
                         <div class="info-item">
@@ -236,6 +284,15 @@
                     
                     <div style="text-align: center; margin-top: 20px;">
                         <button onclick="showMasterEditForm()" style="padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600;">Редактировать профиль</button>
+                    </div>
+                </div>
+
+                <!-- Schedule Card -->
+                <div class="card">
+                    <h2 style="margin-bottom: 20px;">⏰ Расписание работы</h2>
+                    <button onclick="showScheduleModal()" style="margin-bottom: 20px; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Настроить расписание</button>
+                    <div id="schedulePreview" style="color: #64748b;">
+                        <!-- Schedule will be loaded here -->
                     </div>
                 </div>
 
@@ -271,20 +328,36 @@
                 <!-- Reviews Card -->
                 <div class="card">
                     <h2 style="margin-bottom: 20px;">Отзывы</h2>
-                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                        <button onclick="showReviewsModal()" style="flex: 1; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Смотреть отзывы</button>
-                        <button onclick="showAddReviewModal()" style="flex: 1; padding: 10px 20px; background: var(--secondary); color: white; border: none; border-radius: 8px; cursor: pointer;">Добавить отзыв</button>
+                    <div style="margin-bottom: 20px;">
+                        <button onclick="window.location.href='/reviews/' + getCurrentMasterId()" style="width: 100%; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Посмотреть все отзывы</button>
                     </div>
                     <div id="reviewsPreview">
                         <!-- Reviews preview will be loaded here -->
                     </div>
                 </div>
 
+                <!-- Certificates Card -->
+                <div class="card">
+                    <h2 style="margin-bottom: 20px;">Сертификаты</h2>
+                    <button onclick="showAddCertificateModal()" style="margin-bottom: 20px; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Добавить Сертификат</button>
+                    <div id="certificatesList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;">
+                        <!-- Certificates will be loaded here -->
+                    </div>
+                </div>
+
                <!-- Payment Feature -->
-               <div class="card">
+               <!-- <div class="card">
                    <h2 style="margin-bottom: 20px;">💳 Оплата услуг</h2>
                    <p style="color: #64748b;">Интеграция оплаты в приложении (в разработке)</p>
                    <button style="margin-top: 20px; padding: 10px 20px; background: var(--secondary); color: white; border: none; border-radius: 8px; cursor: pointer;" disabled>Оплатить через приложение</button>
+               </div> -->
+
+               <!-- Master Notifications Card -->
+               <div class="card">
+                   <h2 style="margin-bottom: 20px;">Уведомления</h2>
+                   <div id="masterNotifications" style="max-height: 500px; overflow-y: auto;">
+                       <p style="color: #999;">Загрузка...</p>
+                   </div>
                </div>
 
                <!-- Delete Master Profile -->
@@ -294,6 +367,35 @@
                    <button onclick="deleteMasterProfile()" style="margin-top: 20px; padding: 10px 20px; background: #e74c3c; color: white; border: none; border-radius: 8px; cursor: pointer;">Удалить профиль мастера</button>
                </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal: Schedule -->
+    <div id="scheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 15px; padding: 30px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto;">
+            <h2 style="margin-bottom: 20px;">Настройка расписания работы</h2>
+            <p style="color: #64748b; margin-bottom: 20px;">Установите рабочее время. Оно будет применяться для всех дней недели</p>
+            <form id="scheduleForm" onsubmit="saveSchedule(event)">
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; color: #334155; font-weight: 600;">Время начала работы:</label>
+                    <input type="time" id="schedule_start_time" value="08:00" required
+                           style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
+                    <p style="color: #64748b; font-size: 14px; margin-top: 5px;">Например: 08:00</p>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; color: #334155; font-weight: 600;">Время окончания работы:</label>
+                    <input type="time" id="schedule_end_time" value="19:00" required
+                           style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
+                    <p style="color: #64748b; font-size: 14px; margin-top: 5px;">Например: 19:00</p>
+                </div>
+                <p style="color: #64748b; font-size: 14px; margin-top: 15px; padding: 10px; background: #f0f9ff; border-radius: 8px;">
+                    <strong>Примечание:</strong> Доступное время для записи будет формироваться каждый час в указанном диапазоне (например, с 08:00 до 19:00: 08:00, 09:00, 10:00... 19:00)
+                </p>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" style="flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Сохранить</button>
+                    <button type="button" onclick="closeScheduleModal()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Отмена</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -367,35 +469,22 @@
         </div>
     </div>
 
-    <!-- Modal: Add Review -->
-    <div id="addReviewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <!-- Modal: Add Certificate -->
+    <div id="addCertificateModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
         <div style="background: white; border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;">
-            <h2>Добавить отзыв</h2>
-            <form id="addReviewForm" onsubmit="saveReview(event)">
+            <h2>Добавить Сертификат</h2>
+            <form id="addCertificateForm" onsubmit="saveCertificate(event)" enctype="multipart/form-data">
                 <div class="form-group">
-                    <label>Выберите мастера:</label>
-                    <select id="reviewMasterId" required style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
-                        <option value="">Выберите мастера...</option>
-                    </select>
+                    <label>Название сертификата:</label>
+                    <input type="text" id="certificateName" required style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
                 </div>
                 <div class="form-group">
-                    <label>Оценка:</label>
-                    <div style="display: flex; gap: 5px; margin-top: 10px;">
-                        <span id="star1" onclick="setRating(1)" style="font-size: 30px; cursor: pointer; color: #ddd;">★</span>
-                        <span id="star2" onclick="setRating(2)" style="font-size: 30px; cursor: pointer; color: #ddd;">★</span>
-                        <span id="star3" onclick="setRating(3)" style="font-size: 30px; cursor: pointer; color: #ddd;">★</span>
-                        <span id="star4" onclick="setRating(4)" style="font-size: 30px; cursor: pointer; color: #ddd;">★</span>
-                        <span id="star5" onclick="setRating(5)" style="font-size: 30px; cursor: pointer; color: #ddd;">★</span>
-                    </div>
-                    <input type="hidden" id="reviewRating" value="0">
-                </div>
-                <div class="form-group">
-                    <label>Комментарий:</label>
-                    <textarea id="reviewComment" rows="4" placeholder="Оставьте отзыв о работе мастера..."></textarea>
+                    <label>Фото сертификата:</label>
+                    <input type="file" id="certificatePhoto" accept="image/*" required style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button type="submit" style="flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Добавить отзыв</button>
-                    <button type="button" onclick="closeAddReviewModal()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Отмена</button>
+                    <button type="submit" style="flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Добавить</button>
+                    <button type="button" onclick="closeAddCertificateModal()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Отмена</button>
                 </div>
             </form>
         </div>
@@ -429,6 +518,61 @@
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
                     <button type="submit" style="flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Сохранить</button>
                     <button type="button" onclick="closeMasterEditModal()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- (4) Закомментировано для будущего использования: Подписка и пакеты (6.) -->
+    <!--
+    <div id="subscriptionModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 15px; padding: 30px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
+            <h2 style="margin-bottom: 20px;">Моя подписка</h2>
+            <div id="subscriptionDetails" style="margin-bottom: 20px;">
+                <p style="color: #999;">Загрузка...</p>
+            </div>
+            <div id="trialInfo" style="margin-bottom: 20px; padding: 15px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b; display: none;">
+                <p style="margin: 0; font-weight: 600; color: #92400e;">🎁 Пробный период активен!</p>
+                <p style="margin: 5px 0 0 0; color: #78350f; font-size: 14px;" id="trialExpiryText"></p>
+            </div>
+            <div style="margin-top: 20px;">
+                <h3>Преимущества Премиум:</h3>
+                <ul style="list-style: none; padding: 0;">
+                    <li style="padding: 10px; margin: 5px 0; background: #f0f9ff; border-radius: 8px;">✓ Скидки на услуги</li>
+                    <li style="padding: 10px; margin: 5px 0; background: #f0f9ff; border-radius: 8px;">✓ Приоритетная запись</li>
+                    <li style="padding: 10px; margin: 5px 0; background: #f0f9ff; border-radius: 8px;">✓ Неограниченное количество избранных мастеров</li>
+                </ul>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button onclick="updateSubscription('premium')" style="flex: 1; padding: 12px; background: var(--secondary); color: white; border: none; border-radius: 8px; cursor: pointer;">Перейти на Премиум</button>
+                <button onclick="updateSubscription('basic')" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Базовый план</button>
+                <button onclick="closeSubscriptionModal()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Закрыть</button>
+            </div>
+        </div>
+    </div>
+    -->
+
+    <!-- Modal: Add/Edit Car -->
+    <div id="carModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;">
+            <h2 id="carModalTitle">Добавить авто</h2>
+            <form id="carForm" onsubmit="saveCar(event)">
+                <input type="hidden" id="carId">
+                <div class="form-group">
+                    <label>Название машины:</label>
+                    <input type="text" id="carName" required style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
+                </div>
+                <div class="form-group">
+                    <label>Год:</label>
+                    <input type="number" id="carYear" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
+                </div>
+                <div class="form-group">
+                    <label>Комментарий:</label>
+                    <textarea id="carComment" rows="4" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" style="flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Сохранить</button>
+                    <button type="button" onclick="closeCarModal()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">Отмена</button>
                 </div>
             </form>
         </div>

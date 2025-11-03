@@ -173,3 +173,84 @@ type ReviewWithUser struct {
 	Review
 	UserName string `json:"user_name" db:"user_name"`
 }
+
+// Subscription represents a user subscription
+type Subscription struct {
+	ID             int        `json:"id" db:"id"`
+	UserID         int        `json:"user_id" db:"user_id"`
+	Plan           string     `json:"plan" db:"plan"`
+	TrialStartDate *time.Time `json:"trial_start_date" db:"trial_start_date"`
+	TrialEndDate   *time.Time `json:"trial_end_date" db:"trial_end_date"`
+	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
+}
+
+// FavoriteMaster represents a favorite master for a user
+type FavoriteMaster struct {
+	ID        int       `json:"id" db:"id"`
+	UserID    int       `json:"user_id" db:"user_id"`
+	MasterID  int       `json:"master_id" db:"master_id"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}
+
+// UserCar represents a user's car
+type UserCar struct {
+	ID        int       `json:"id" db:"id"`
+	UserID    int       `json:"user_id" db:"user_id"`
+	Name      string    `json:"name" db:"name"`
+	Year      int       `json:"year" db:"year"`
+	Comment   string    `json:"comment" db:"comment"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// Guarantee represents a guarantee for a service
+type Guarantee struct {
+	ID            int       `json:"id" db:"id"`
+	UserID        int       `json:"user_id" db:"user_id"`
+	AppointmentID int       `json:"appointment_id" db:"appointment_id"`
+	ServiceName   string    `json:"service_name" db:"service_name"`
+	MasterName    string    `json:"master_name" db:"master_name"`
+	ServiceDate   time.Time `json:"service_date" db:"service_date"`
+	ExpiryDate    time.Time `json:"expiry_date" db:"expiry_date"`
+	CreatedAt     time.Time `json:"created_at" db:"created_at"`
+}
+
+// GuaranteeWithDetails represents a guarantee with appointment and car details
+type GuaranteeWithDetails struct {
+	Guarantee
+	AppointmentDate   string `json:"appointment_date"`
+	AppointmentTime   string `json:"appointment_time"`
+	AppointmentStatus string `json:"appointment_status"`
+	CarName           string `json:"car_name"`
+	CarYear           int    `json:"car_year"`
+}
+
+// Notification represents a notification for a user
+type Notification struct {
+	ID        int       `json:"id" db:"id"`
+	UserID    int       `json:"user_id" db:"user_id"`
+	Type      string    `json:"type" db:"type"`
+	Title     string    `json:"title" db:"title"`
+	Message   string    `json:"message" db:"message"`
+	RelatedID int       `json:"related_id" db:"related_id"`
+	IsRead    bool      `json:"is_read" db:"is_read"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}
+
+// MasterWithStatus represents a master with verified status
+type MasterWithStatus struct {
+	Master
+	IsVerified  bool `json:"is_verified" db:"is_verified"`
+	ReviewCount int  `json:"review_count" db:"review_count"`
+	WorkCount   int  `json:"work_count" db:"work_count"`
+}
+
+// MasterCertificate represents a master's certificate
+type MasterCertificate struct {
+	ID        int       `json:"id" db:"id"`
+	MasterID  int       `json:"master_id" db:"master_id"`
+	Name      string    `json:"name" db:"name"`
+	PhotoURL  string    `json:"photo_url" db:"photo_url"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}

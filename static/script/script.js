@@ -4,6 +4,13 @@ let selectedMasterId = null;
 let selectedServiceId = null;
 let allMasters = []; // Store all masters for filtering
 
+// Map variables
+let map = null;
+let userLocationMarker = null;
+let masterMarkers = [];
+let selectedLocation = null;
+let searchRadius = 10; // km
+
 // Utility function to log duplicates
 function logDuplicates(data, type, uniqueData) {
     if (data.length !== uniqueData.length) {
@@ -26,7 +33,228 @@ window.onload = function() {
     loadMasters();
     loadCars();
     setDefaultDate();
+    // (4) Закомментировано для будущего использования: Поиск мастеров поблизости (14.)
+    // initMap();
 };
+
+// Initialize map
+function initMap() {
+    // Default center: Almaty, Kazakhstan
+    const defaultCenter = [43.2220, 76.8512];
+    
+    map = L.map('map').setView(defaultCenter, 12);
+    
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+    }).addTo(map);
+    
+    // Add click handler to select location
+    map.on('click', function(e) {
+        selectLocationOnMap(e.latlng.lat, e.latlng.lng);
+    });
+    
+    // Try to get user location automatically
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                selectLocationOnMap(lat, lng, true);
+            },
+            function(error) {
+                console.log('Geolocation error:', error);
+            }
+        );
+    }
+}
+
+// Select location on map
+function selectLocationOnMap(lat, lng, isUserLocation = false) {
+    selectedLocation = { lat, lng };
+    
+    // Remove existing marker
+    if (userLocationMarker) {
+        map.removeLayer(userLocationMarker);
+    }
+    
+    // Create custom icon
+    const icon = L.icon({
+        iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="${isUserLocation ? '#10b981' : '#667eea'}">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+            </svg>
+        `),
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32]
+    });
+    
+    // Add marker
+    userLocationMarker = L.marker([lat, lng], { icon }).addTo(map);
+    
+    if (isUserLocation) {
+        userLocationMarker.bindPopup('<b>Ваше местоположение</b>').openPopup();
+    } else {
+        userLocationMarker.bindPopup('<b>Выбранное местоположение</b>').openPopup();
+    }
+    
+    // Center map on selected location
+    map.setView([lat, lng], 13);
+    
+    // Update masters display based on location
+    updateMastersByLocation();
+}
+
+// Get user location
+function getUserLocation() {
+    if (!navigator.geolocation) {
+        alert('Геолокация не поддерживается вашим браузером');
+        return;
+    }
+    
+    const button = event.target;
+    const originalText = button.textContent;
+    button.textContent = '⏳ Определение...';
+    button.disabled = true;
+    
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            selectLocationOnMap(lat, lng, true);
+            button.textContent = originalText;
+            button.disabled = false;
+        },
+        function(error) {
+            console.error('Geolocation error:', error);
+            alert('Не удалось определить ваше местоположение. Пожалуйста, выберите местоположение на карте.');
+            button.textContent = originalText;
+            button.disabled = false;
+        }
+    );
+}
+
+// Clear map location
+function clearMapLocation() {
+    if (userLocationMarker) {
+        map.removeLayer(userLocationMarker);
+        userLocationMarker = null;
+    }
+    selectedLocation = null;
+    
+    // Remove radius circle
+    map.eachLayer(function(layer) {
+        if (layer instanceof L.Circle) {
+            map.removeLayer(layer);
+        }
+    });
+    
+    // Reload all masters
+    loadMasters();
+}
+
+// Update radius
+function updateRadius(radius) {
+    searchRadius = parseInt(radius);
+    document.getElementById('radius-value').textContent = `${searchRadius} км`;
+    
+    if (selectedLocation) {
+        updateMastersByLocation();
+    }
+}
+
+// Calculate distance between two points (Haversine formula)
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+// Update masters by location
+function updateMastersByLocation() {
+    if (!selectedLocation || !allMasters.length) return;
+    
+    // Remove existing master markers
+    masterMarkers.forEach(marker => map.removeLayer(marker));
+    masterMarkers = [];
+    
+    // Remove existing radius circle
+    map.eachLayer(function(layer) {
+        if (layer instanceof L.Circle) {
+            map.removeLayer(layer);
+        }
+    });
+    
+    // Draw radius circle
+    const radiusCircle = L.circle([selectedLocation.lat, selectedLocation.lng], {
+        color: '#667eea',
+        fillColor: '#667eea',
+        fillOpacity: 0.1,
+        radius: searchRadius * 1000 // convert km to meters
+    }).addTo(map);
+    
+    // Filter and display masters within radius
+    const nearbyMasters = allMasters.filter(master => {
+        if (!master.location_lat || !master.location_lng) return false;
+        const distance = calculateDistance(
+            selectedLocation.lat,
+            selectedLocation.lng,
+            master.location_lat,
+            master.location_lng
+        );
+        master.distance = distance;
+        return distance <= searchRadius;
+    });
+    
+    // Sort by distance
+    nearbyMasters.sort((a, b) => a.distance - b.distance);
+    
+    // Add markers for nearby masters
+    nearbyMasters.forEach(master => {
+        const masterIcon = L.icon({
+            iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#ef4444">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                </svg>
+            `),
+            iconSize: [28, 28],
+            iconAnchor: [14, 28],
+            popupAnchor: [0, -28]
+        });
+        
+        const marker = L.marker([master.location_lat, master.location_lng], { icon: masterIcon })
+            .addTo(map)
+            .bindPopup(`
+                <div style="min-width: 200px;">
+                    <h3 style="margin: 0 0 8px 0; color: #334155;">${master.name}</h3>
+                    <p style="margin: 4px 0; color: #64748b; font-size: 14px;">${master.specialization || 'Мастер'}</p>
+                    <p style="margin: 4px 0; color: #64748b; font-size: 14px;">⭐ ${master.rating || 'N/A'}</p>
+                    <p style="margin: 4px 0; color: #64748b; font-size: 14px;">📍 ${master.address || 'Адрес не указан'}</p>
+                    <p style="margin: 4px 0; color: var(--primary); font-weight: 600; font-size: 14px;">📏 ${master.distance.toFixed(1)} км</p>
+                    <button onclick="selectMaster(${master.id})" style="margin-top: 8px; padding: 6px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">Выбрать</button>
+                </div>
+            `);
+        
+        masterMarkers.push(marker);
+    });
+    
+    // Update masters list to show only nearby masters
+    if (nearbyMasters.length > 0) {
+        renderMasters(nearbyMasters);
+        console.log(`Найдено ${nearbyMasters.length} мастеров в радиусе ${searchRadius} км`);
+    } else {
+        const container = document.getElementById('masters-container');
+        container.innerHTML = `<div style="text-align: center; padding: 20px; color: #64748b;">В радиусе ${searchRadius} км мастеров не найдено</div>`;
+    }
+}
 
 function setDefaultDate() {
     const tomorrow = new Date();
@@ -148,7 +376,16 @@ async function loadMasters() {
             return;
         }
 
-        renderMasters(uniqueMasters);
+        // If location is selected, filter by location, otherwise show all
+        if (selectedLocation) {
+            updateMastersByLocation();
+        } else {
+            renderMasters(uniqueMasters);
+            // Add all masters to map if no location selected
+            if (map) {
+                addAllMastersToMap(uniqueMasters);
+            }
+        }
     } catch (error) {
         console.error('Ошибка загрузки мастеров:', error);
         document.getElementById('masters-container').innerHTML = '<div class="error">Ошибка загрузки мастеров</div>';
@@ -162,28 +399,181 @@ function renderMasters(masters) {
     masters.forEach(master => {
         const card = document.createElement('div');
         card.className = 'master-card';
-        card.onclick = () => selectMaster(master.id);
+        card.onclick = (e) => {
+            if (e.target.classList.contains('favorite-star') || e.target.parentElement.classList.contains('favorite-star')) {
+                return; // Don't select master when clicking star
+            }
+            selectMaster(master.id);
+        };
+        
+        const isVerified = master.is_verified ? '<span style="color: #10b981; font-size: 14px; font-weight: 600;">✓ Проверенный</span>' : '';
+        const favoriteClass = master.is_favorite ? 'favorite-active' : '';
+        const favoriteIcon = master.is_favorite ? '⭐' : '☆';
+        
         card.innerHTML = `
-            <div class="master-avatar">${master.name.charAt(0)}</div>
+            <div style="position: relative;">
+                <div class="master-avatar">${master.name.charAt(0)}</div>
+                <span class="favorite-star ${favoriteClass}" onclick="toggleFavorite(${master.id}, event)" style="position: absolute; top: 5px; right: 5px; font-size: 16px; cursor: pointer; z-index: 10; padding: 2px; background: rgba(255,255,255,0.8); border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; line-height: 1;" title="${master.is_favorite ? 'Удалить из избранного' : 'Добавить в избранное'}">${favoriteIcon}</span>
+            </div>
             <h3>${master.name}</h3>
+            ${isVerified}
             <div class="rating">⭐ ${master.rating || 'N/A'}</div>
             <p class="specialization">${master.specialization || 'Expert'}</p>
             <div class="master-location">📍 ${master.address || 'Location not specified'}</div>
+            <button onclick="event.stopPropagation(); window.location.href='/reviews/${master.id}'" style="margin-top: 10px; width: 100%; padding: 8px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;">Посмотреть отзывы</button>
         `;
         container.appendChild(card);
     });
 }
 
-function filterMasters() {
+// Toggle favorite master
+async function toggleFavorite(masterId, event) {
+    event.stopPropagation();
+    
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            showResults('Необходима авторизация для добавления в избранное', 'error');
+            return;
+        }
+        
+        // Find master in allMasters
+        const master = allMasters.find(m => m.id === masterId);
+        if (!master) return;
+        
+        const isFavorite = master.is_favorite;
+        const url = isFavorite ? `${API_URL}/favorites/${masterId}` : `${API_URL}/favorites`;
+        const method = isFavorite ? 'DELETE' : 'POST';
+        
+        const requestBody = isFavorite ? undefined : JSON.stringify({ master_id: masterId });
+        
+        // Ensure token format is correct for the backend
+        // Backend expects token with "mock-jwt-token-" prefix
+        // If token is just email, add prefix; if already has prefix, use as is
+        let authToken = token;
+        if (token && !token.includes('mock-jwt-token-') && token.includes('@')) {
+            // Token is email, add prefix
+            authToken = `mock-jwt-token-${token}`;
+        }
+        // Remove "Bearer " prefix if present, backend will add it
+        authToken = authToken.replace(/^Bearer\s+/i, '');
+        
+        const response = await fetch(url, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: requestBody
+        });
+        
+        if (!response.ok) {
+            let errorMessage = 'Не удалось обновить избранное';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorMessage;
+                console.error('API Error:', errorData);
+                
+                // If user not found, suggest to re-login or register
+                if (response.status === 401) {
+                    if (errorData.error && (errorData.error.includes('не найден') || errorData.error.includes('not found'))) {
+                        errorMessage = 'Пользователь не найден. Пожалуйста, войдите в систему или зарегистрируйтесь.';
+                        // Clear token and redirect to login
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                        
+                        // Show login modal after a short delay
+                        setTimeout(() => {
+                            if (typeof showLoginModal === 'function') {
+                                showLoginModal();
+                            } else {
+                                // If modal function not available, reload page
+                                window.location.reload();
+                            }
+                        }, 1000);
+                    } else {
+                        errorMessage = 'Необходима авторизация. Пожалуйста, войдите в систему.';
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                    }
+                }
+            } catch (e) {
+                console.error('Response status:', response.status, response.statusText);
+            }
+            throw new Error(errorMessage);
+        }
+        
+        // Update local state immediately for UI responsiveness
+        master.is_favorite = !isFavorite;
+        
+        console.log(`Favorite ${!isFavorite ? 'added' : 'removed'} for master ${masterId}, new state: ${master.is_favorite}`);
+        
+        // Re-render masters with updated state immediately
+        const searchTerm = document.getElementById('master-search').value.toLowerCase();
+        if (searchTerm) {
+            filterMasters();
+        } else {
+            renderMasters(allMasters);
+        }
+        
+        showResults(isFavorite ? 'Мастер удален из избранного' : 'Мастер добавлен в избранное', 'success');
+        
+        // Don't reload immediately - let user see the change
+        // The state will be synced on next page load or manual refresh
+        // This prevents the issue where favorite gets added then immediately removed
+    } catch (error) {
+        console.error('Ошибка обновления избранного:', error);
+        showResults(`Ошибка: ${error.message}`, 'error');
+    }
+}
+
+// Filter by favorites
+let showOnlyFavorites = false;
+let showOnlyVerified = false;
+
+function toggleFavoritesFilter() {
+    showOnlyFavorites = !showOnlyFavorites;
+    const button = document.getElementById('favoritesFilterBtn');
+    if (button) {
+        button.style.background = showOnlyFavorites ? 'var(--primary)' : '#6b7280';
+    }
+    applyFilters();
+}
+
+function toggleVerifiedFilter() {
+    showOnlyVerified = !showOnlyVerified;
+    const button = document.getElementById('verifiedFilterBtn');
+    if (button) {
+        button.style.background = showOnlyVerified ? '#10b981' : '#6b7280';
+        button.style.color = showOnlyVerified ? 'white' : 'white';
+    }
+    applyFilters();
+}
+
+function applyFilters() {
     const searchTerm = document.getElementById('master-search').value.toLowerCase();
-    const filteredMasters = allMasters.filter(master => 
+    let filteredMasters = allMasters.filter(master => 
         master.name.toLowerCase().includes(searchTerm) ||
         master.specialization.toLowerCase().includes(searchTerm) ||
         (master.address && master.address.toLowerCase().includes(searchTerm))
     );
     
+    // Apply favorites filter if active
+    if (showOnlyFavorites) {
+        filteredMasters = filteredMasters.filter(m => m.is_favorite);
+    }
+    
+    // Apply verified filter if active
+    if (showOnlyVerified) {
+        filteredMasters = filteredMasters.filter(m => m.is_verified);
+    }
+    
     console.log(`Filtered ${allMasters.length} masters to ${filteredMasters.length} results`);
     renderMasters(filteredMasters);
+}
+
+function filterMasters() {
+    applyFilters();
 }
 
 function toggleMasterDropdown() {
@@ -249,26 +639,40 @@ async function updateTimeSlots() {
     const date = document.getElementById('appointment-date').value;
     if (!date) return;
 
+    const select = document.getElementById('appointment-time');
+    select.innerHTML = '<option value="">Загрузка...</option>';
+    select.disabled = true;
+
     try {
-const response = await fetch(`${API_URL}/masters/${selectedMasterId}/available-slots?date=${date}`);
-const data = await response.json();
-const select = document.getElementById('appointment-time');
+        const response = await fetch(`${API_URL}/masters/${selectedMasterId}/available-slots?date=${date}`);
+        
+        if (!response.ok) {
+            select.innerHTML = '<option value="">Ошибка загрузки времени</option>';
+            select.disabled = false;
+            return;
+        }
+        
+        const data = await response.json();
         select.innerHTML = '<option value="">Выберите время...</option>';
 
-if (data.slots && data.slots.length > 0) {
-    data.slots.forEach(slot => {
-const option = document.createElement('option');
-option.value = slot;
-option.textContent = slot;
-select.appendChild(option);
-    });
-} else {
-    const option = document.createElement('option');
-    option.textContent = 'Нет доступного времени';
-    select.appendChild(option);
-}
+        if (data.slots && data.slots.length > 0) {
+            data.slots.forEach(slot => {
+                const option = document.createElement('option');
+                option.value = slot;
+                option.textContent = slot;
+                select.appendChild(option);
+            });
+        } else {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'Нет доступного времени';
+            option.disabled = true;
+            select.appendChild(option);
+        }
+        select.disabled = false;
     } catch (error) {
-console.error('Ошибка загрузки времени:', error);
+        select.innerHTML = '<option value="">Ошибка загрузки времени</option>';
+        select.disabled = false;
     }
 }
 
@@ -617,5 +1021,41 @@ function logout() {
 
 function viewProfile() {
     window.location.href = '/profile';
+}
+
+// Add all masters to map (when no location filter is applied)
+function addAllMastersToMap(masters) {
+    // Remove existing master markers
+    masterMarkers.forEach(marker => map.removeLayer(marker));
+    masterMarkers = [];
+    
+    masters.forEach(master => {
+        if (!master.location_lat || !master.location_lng) return;
+        
+        const masterIcon = L.icon({
+            iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#ef4444">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                </svg>
+            `),
+            iconSize: [28, 28],
+            iconAnchor: [14, 28],
+            popupAnchor: [0, -28]
+        });
+        
+        const marker = L.marker([master.location_lat, master.location_lng], { icon: masterIcon })
+            .addTo(map)
+            .bindPopup(`
+                <div style="min-width: 200px;">
+                    <h3 style="margin: 0 0 8px 0; color: #334155;">${master.name}</h3>
+                    <p style="margin: 4px 0; color: #64748b; font-size: 14px;">${master.specialization || 'Мастер'}</p>
+                    <p style="margin: 4px 0; color: #64748b; font-size: 14px;">⭐ ${master.rating || 'N/A'}</p>
+                    <p style="margin: 4px 0; color: #64748b; font-size: 14px;">📍 ${master.address || 'Адрес не указан'}</p>
+                    <button onclick="selectMaster(${master.id})" style="margin-top: 8px; padding: 6px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">Выбрать</button>
+                </div>
+            `);
+        
+        masterMarkers.push(marker);
+    });
 }
     

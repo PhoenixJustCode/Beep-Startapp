@@ -1,6 +1,9 @@
 package router
 
 import (
+	"net/http"
+	"strings"
+
 	"beep-backend/internal/handlers"
 
 	"github.com/gin-gonic/gin"
@@ -33,6 +36,17 @@ func SetupRouter(h *handlers.Handlers) *gin.Engine {
 			user.GET("/profile", h.GetUserProfile)
 			user.PUT("/profile", h.UpdateUserProfile)
 			user.POST("/photo", h.UploadProfilePhoto)
+			// (4) Закомментировано для будущего использования: Подписка и пакеты (6.)
+			// user.GET("/subscription", h.GetUserSubscription)
+			// user.PUT("/subscription", h.UpdateUserSubscription)
+			user.GET("/cars", h.GetUserCars)
+			user.POST("/cars", h.CreateUserCar)
+			user.PUT("/cars/:id", h.UpdateUserCar)
+			user.DELETE("/cars/:id", h.DeleteUserCar)
+			// (4) Закомментировано для будущего использования: Система гарантий и страхование услуг (5.)
+			// user.GET("/guarantees", h.GetUserGuarantees)
+			user.GET("/notifications", h.GetUserNotifications)
+			user.PUT("/notifications/:id/read", h.MarkNotificationRead)
 		}
 
 		// Master profile
@@ -43,6 +57,8 @@ func SetupRouter(h *handlers.Handlers) *gin.Engine {
 			master.PUT("/profile", h.UpdateMasterProfile)
 			master.DELETE("/profile", h.DeleteMasterProfile)
 			master.POST("/photo", h.UploadMasterPhoto)
+			master.GET("/schedule", h.GetMasterScheduleByUser)
+			master.PUT("/schedule", h.UpdateMasterSchedule)
 			master.GET("/works", h.GetMasterWorks)
 			master.POST("/works", h.CreateMasterWork)
 			master.GET("/works/:id", h.GetMasterWork)
@@ -53,6 +69,11 @@ func SetupRouter(h *handlers.Handlers) *gin.Engine {
 			master.PUT("/payment-info", h.UpdateMasterPaymentInfo)
 			master.GET("/reviews", h.GetMasterReviews)
 			master.POST("/reviews", h.CreateReview)
+			master.DELETE("/reviews/:id", h.DeleteReview)
+			master.GET("/certificates", h.GetMasterCertificates)
+			master.POST("/certificates", h.CreateMasterCertificate)
+			master.DELETE("/certificates/:id", h.DeleteMasterCertificate)
+			master.GET("/notifications", h.GetMasterNotifications)
 		}
 
 		// Categories
@@ -90,6 +111,17 @@ func SetupRouter(h *handlers.Handlers) *gin.Engine {
 			masters.GET("/:id/reviews", h.GetMasterReviews)
 			masters.GET("/:id/schedule", h.GetMasterSchedule)
 			masters.GET("/:id/available-slots", h.GetAvailableSlots)
+			masters.GET("/:id/verification-status", h.GetMasterVerificationStatus)
+			masters.GET("/:id/certificates", h.GetMasterCertificates)
+			masters.GET("/:id/works", h.GetMasterWorksPublic)
+		}
+
+		// Favorite Masters
+		favorites := v1.Group("/favorites")
+		{
+			favorites.GET("", h.GetFavoriteMasters)
+			favorites.POST("", h.AddFavoriteMaster)
+			favorites.DELETE("/:id", h.RemoveFavoriteMaster)
 		}
 
 		// Reviews
@@ -112,6 +144,14 @@ func SetupRouter(h *handlers.Handlers) *gin.Engine {
 
 	// Serve static files (after API routes)
 	r.Static("/static", "./static")
+
+	// Static pages (before NoRoute to ensure they work)
+	// Order matters - more specific routes first
+	r.GET("/reviews/:id", func(c *gin.Context) {
+		// Serve the reviews.html file regardless of the ID parameter
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.File("./static/reviews.html")
+	})
 	r.GET("/", func(c *gin.Context) {
 		c.File("./static/index.html")
 	})
@@ -121,7 +161,14 @@ func SetupRouter(h *handlers.Handlers) *gin.Engine {
 	r.GET("/profile", func(c *gin.Context) {
 		c.File("./static/profile.html")
 	})
+
 	r.NoRoute(func(c *gin.Context) {
+		// Check if request is for API - return JSON error instead of HTML
+		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
+			return
+		}
+		// For non-API requests, serve index.html (SPA fallback)
 		c.File("./static/index.html")
 	})
 

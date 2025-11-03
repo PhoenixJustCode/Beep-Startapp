@@ -245,3 +245,12 @@ type MasterWithStatus struct {
 	ReviewCount int  `json:"review_count" db:"review_count"`
 	WorkCount   int  `json:"work_count" db:"work_count"`
 }
+
+// MasterCertificate represents a master's certificate
+type MasterCertificate struct {
+	ID        int       `json:"id" db:"id"`
+	MasterID  int       `json:"master_id" db:"master_id"`
+	Name      string    `json:"name" db:"name"`
+	PhotoURL  string    `json:"photo_url" db:"photo_url"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}

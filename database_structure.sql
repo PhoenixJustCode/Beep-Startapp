@@ -137,3 +137,12 @@ CREATE TABLE IF NOT EXISTS master_payment_info (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Таблица сертификатов мастеров
+CREATE TABLE IF NOT EXISTS master_certificates (
+    id SERIAL PRIMARY KEY,
+    master_id INTEGER REFERENCES masters(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    photo_url VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

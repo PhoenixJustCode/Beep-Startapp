@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Отзывы мастера - BEEP</title>
+    <link rel="stylesheet" href="/static/style/style.css">
+</head>
+<body style="margin: 0; padding: 0;">
+    <div class="container" style="padding: 20px; max-width: 1200px; margin: 0 auto;">
+        <header style="margin-bottom: 30px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div style="flex: 1; display: flex; align-items: center; gap: 15px;">
+                    <a href="/"><img src="/static/logo.png?v=3&t=1730123456" alt="BEEP" style="width: 60px; height: 60px;"></a>
+                    <div>
+                        <h1 style="margin: 0;">BEEP</h1>
+                        <p class="tagline" style="margin: 0;">Отзывы мастера</p>
+                    </div>
+                </div>
+                <button class="home-button" onclick="window.location.href='/'">Главная</button>            
+            </div>
+        </header>
+
+        <!-- Master Info Card -->
+        <div class="card" id="masterInfoCard" style="margin-bottom: 30px;">
+            <div id="masterInfoContent" style="text-align: center; padding: 20px;">
+                <p style="color: #999;">Загрузка...</p>
+            </div>
+        </div>
+
+        <!-- Master Works Card -->
+        <div class="card" style="margin-bottom: 30px;">
+            <h2 style="margin-bottom: 20px;">Работы мастера</h2>
+            <div id="masterWorksList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; padding: 10px 0;">
+                <p style="color: #999;">Загрузка...</p>
+            </div>
+        </div>
+
+        <!-- Master Certificates Card -->
+        <div class="card" style="margin-bottom: 30px;">
+            <h2 style="margin-bottom: 20px;">Сертификаты</h2>
+            <div id="masterCertificatesList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; padding: 10px 0;">
+                <p style="color: #999;">Загрузка...</p>
+            </div>
+        </div>
+
+        <!-- Reviews Card -->
+        <div class="card" style="margin-bottom: 30px;">
+            <h2 style="margin-bottom: 20px;">Отзывы</h2>
+            <div id="reviewsList" style="max-height: 600px; overflow-y: auto; padding: 10px 0;">
+                <p style="color: #999;">Загрузка...</p>
+            </div>
+        </div>
+
+        <!-- Add Review Card (only for logged in users) -->
+        <div class="card" id="addReviewCard" style="display: none; margin-bottom: 30px;">
+            <h2 style="margin-bottom: 20px;">Добавить отзыв</h2>
+            <form id="addReviewForm" onsubmit="saveReview(event)" style="padding: 10px 0;">
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: 600;">Оценка:</label>
+                    <div style="display: flex; gap: 5px; margin-top: 10px;">
+                        <span id="star1" onclick="setReviewRating(1)" style="font-size: 30px; cursor: pointer; color: #ddd;">★</span>
+                        <span id="star2" onclick="setReviewRating(2)" style="font-size: 30px; cursor: pointer; color: #ddd;">★</span>
+                        <span id="star3" onclick="setReviewRating(3)" style="font-size: 30px; cursor: pointer; color: #ddd;">★</span>
+                        <span id="star4" onclick="setReviewRating(4)" style="font-size: 30px; cursor: pointer; color: #ddd;">★</span>
+                        <span id="star5" onclick="setReviewRating(5)" style="font-size: 30px; cursor: pointer; color: #ddd;">★</span>
+                    </div>
+                    <input type="hidden" id="reviewRating" value="0">
+                </div>
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: 600;">Комментарий:</label>
+                    <textarea id="reviewComment" rows="4" placeholder="Оставьте отзыв о работе мастера..." style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; font-family: inherit; resize: vertical;"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" style="flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Добавить отзыв</button>
+                    <button type="button" onclick="resetReviewForm()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Очистить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/script/reviews.js"></script>
+</body>
+</html>

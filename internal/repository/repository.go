@@ -777,8 +777,23 @@ func (r *Repository) UpdateMaster(masterID int, name, email, phone, specializati
 }
 
 // DeleteMasterProfile deletes master profile by user ID
+// First deletes all related appointments, then the master profile
 func (r *Repository) DeleteMasterProfile(userID int) error {
-	_, err := r.db.Exec("DELETE FROM masters WHERE user_id = $1", userID)
+	// Get master ID first
+	var masterID int
+	err := r.db.QueryRow("SELECT id FROM masters WHERE user_id = $1", userID).Scan(&masterID)
+	if err != nil {
+		return err
+	}
+
+	// Delete all appointments for this master
+	_, err = r.db.Exec("DELETE FROM appointments WHERE master_id = $1", masterID)
+	if err != nil {
+		return err
+	}
+
+	// Delete master profile (other related tables have ON DELETE CASCADE)
+	_, err = r.db.Exec("DELETE FROM masters WHERE user_id = $1", userID)
 	return err
 }
 
@@ -992,6 +1007,25 @@ func (r *Repository) CreateReview(masterID, userID, rating int, comment string) 
 		return nil, err
 	}
 	return &review, nil
+}
+
+// DeleteReview deletes a review - only master who received the review can delete it
+func (r *Repository) DeleteReview(reviewID, masterID int) error {
+	result, err := r.db.Exec("DELETE FROM reviews WHERE id = $1 AND master_id = $2", reviewID, masterID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
 }
 
 // Master Verification Methods
@@ -1451,4 +1485,54 @@ func (r *Repository) GetMasterAppointmentsForNotifications(masterID int) ([]mode
 		appointments = append(appointments, apt)
 	}
 	return appointments, nil
+}
+
+// Master Certificates Methods
+
+// GetMasterCertificates gets all certificates for a master
+func (r *Repository) GetMasterCertificates(masterID int) ([]models.MasterCertificate, error) {
+	rows, err := r.db.Query(`
+		SELECT id, master_id, name, photo_url, created_at
+		FROM master_certificates
+		WHERE master_id = $1
+		ORDER BY created_at DESC
+	`, masterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var certificates []models.MasterCertificate
+	for rows.Next() {
+		var cert models.MasterCertificate
+		if err := rows.Scan(&cert.ID, &cert.MasterID, &cert.Name, &cert.PhotoURL, &cert.CreatedAt); err != nil {
+			return nil, err
+		}
+		certificates = append(certificates, cert)
+	}
+	return certificates, nil
+}
+
+// CreateMasterCertificate creates a new certificate for a master
+func (r *Repository) CreateMasterCertificate(masterID int, name, photoURL string) (*models.MasterCertificate, error) {
+	var cert models.MasterCertificate
+	err := r.db.QueryRow(`
+		INSERT INTO master_certificates (master_id, name, photo_url, created_at)
+		VALUES ($1, $2, $3, NOW())
+		RETURNING id, master_id, name, photo_url, created_at
+	`, masterID, name, photoURL).
+		Scan(&cert.ID, &cert.MasterID, &cert.Name, &cert.PhotoURL, &cert.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &cert, nil
+}
+
+// DeleteMasterCertificate deletes a certificate
+func (r *Repository) DeleteMasterCertificate(certificateID, masterID int) error {
+	_, err := r.db.Exec(`
+		DELETE FROM master_certificates
+		WHERE id = $1 AND master_id = $2
+	`, certificateID, masterID)
+	return err
 }

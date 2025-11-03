@@ -360,6 +360,17 @@ func RunMigrations(db *sql.DB) error {
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 			);`,
 		},
+		{
+			name: "create_master_certificates_table",
+			sql: `
+			CREATE TABLE IF NOT EXISTS master_certificates (
+				id SERIAL PRIMARY KEY,
+				master_id INTEGER REFERENCES masters(id) ON DELETE CASCADE,
+				name VARCHAR(255) NOT NULL,
+				photo_url VARCHAR(255) NOT NULL,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			);`,
+		},
 	}
 
 	for _, migration := range newMigrations {

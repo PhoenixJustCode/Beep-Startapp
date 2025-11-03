@@ -1105,6 +1105,23 @@ func (h *Handlers) GetMasterWorks(c *gin.Context) {
 	c.JSON(http.StatusOK, works)
 }
 
+// GetMasterWorksPublic gets all works for a master (public access by master ID)
+func (h *Handlers) GetMasterWorksPublic(c *gin.Context) {
+	masterID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid master ID"})
+		return
+	}
+
+	works, err := h.repo.GetMasterWorks(masterID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, works)
+}
+
 // CreateMasterWork creates a new work entry
 func (h *Handlers) CreateMasterWork(c *gin.Context) {
 	type Request struct {
@@ -1335,20 +1352,35 @@ func (h *Handlers) UpdateMasterPaymentInfo(c *gin.Context) {
 // Reviews Handlers
 
 // GetMasterReviews gets all reviews for a master
+// Can be called with master ID from URL or from authenticated user's master profile
 func (h *Handlers) GetMasterReviews(c *gin.Context) {
-	userID, err := h.getUserIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
+	var masterID int
+	var err error
+
+	// Try to get master ID from URL parameter first (public access)
+	if masterIDParam := c.Param("id"); masterIDParam != "" {
+		masterID, err = strconv.Atoi(masterIDParam)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid master ID"})
+			return
+		}
+	} else {
+		// Otherwise try to get from authenticated user's master profile
+		userID, err := h.getUserIDFromContext(c)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+
+		master, err := h.repo.GetMasterByUserID(userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Master not found"})
+			return
+		}
+		masterID = master.ID
 	}
 
-	master, err := h.repo.GetMasterByUserID(userID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Master not found"})
-		return
-	}
-
-	reviews, err := h.repo.GetMasterReviews(master.ID)
+	reviews, err := h.repo.GetMasterReviews(masterID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -1384,6 +1416,170 @@ func (h *Handlers) CreateReview(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, review)
+}
+
+// DeleteReview deletes a review - only the master who received it can delete
+func (h *Handlers) DeleteReview(c *gin.Context) {
+	reviewID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid review ID"})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// Get master by user ID
+	master, err := h.repo.GetMasterByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Master profile not found"})
+		return
+	}
+
+	// Delete review
+	err = h.repo.DeleteReview(reviewID, master.ID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Review not found or access denied"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Review deleted successfully"})
+}
+
+// Master Certificates Handlers
+
+// GetMasterCertificates gets all certificates for a master
+// Can be called with master ID from URL or from authenticated user's master profile
+func (h *Handlers) GetMasterCertificates(c *gin.Context) {
+	var masterID int
+	var err error
+
+	// Try to get master ID from URL parameter first (public access via /masters/:id/certificates)
+	if masterIDParam := c.Param("id"); masterIDParam != "" {
+		masterID, err = strconv.Atoi(masterIDParam)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid master ID"})
+			return
+		}
+	} else {
+		// Otherwise try to get from authenticated user's master profile (via /master/certificates)
+		userID, err := h.getUserIDFromContext(c)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+
+		master, err := h.repo.GetMasterByUserID(userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Master not found"})
+			return
+		}
+		masterID = master.ID
+	}
+
+	certificates, err := h.repo.GetMasterCertificates(masterID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, certificates)
+}
+
+// CreateMasterCertificate creates a new certificate for a master
+func (h *Handlers) CreateMasterCertificate(c *gin.Context) {
+	name := c.PostForm("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Name is required"})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	master, err := h.repo.GetMasterByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Master profile not found"})
+		return
+	}
+
+	// Get the uploaded file
+	file, err := c.FormFile("photo")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No photo uploaded"})
+		return
+	}
+
+	// Validate file type
+	if !strings.HasPrefix(file.Header.Get("Content-Type"), "image/") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File must be an image"})
+		return
+	}
+
+	// Validate file size (max 5MB)
+	if file.Size > 5*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File too large (max 5MB)"})
+		return
+	}
+
+	// Generate unique filename
+	ext := filepath.Ext(file.Filename)
+	filename := fmt.Sprintf("certificate_%d_%d%s", master.ID, time.Now().Unix(), ext)
+	filepath := filepath.Join("static", "uploads", filename)
+
+	// Save file
+	if err := c.SaveUploadedFile(file, filepath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+		return
+	}
+
+	// Save certificate to database
+	photoURL := "/static/uploads/" + filename
+	certificate, err := h.repo.CreateMasterCertificate(master.ID, name, photoURL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, certificate)
+}
+
+// DeleteMasterCertificate deletes a certificate
+func (h *Handlers) DeleteMasterCertificate(c *gin.Context) {
+	certificateID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid certificate ID"})
+		return
+	}
+
+	userID, err := h.getUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	master, err := h.repo.GetMasterByUserID(userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Master profile not found"})
+		return
+	}
+
+	if err := h.repo.DeleteMasterCertificate(certificateID, master.ID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Certificate deleted successfully"})
 }
 
 // New Feature Handlers

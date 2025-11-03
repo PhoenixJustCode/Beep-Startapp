@@ -5,9 +5,11 @@ window.onload = function() {
     loadUserProfile();
     loadUserAppointments();
     loadMasterProfile();
-    loadUserSubscription();
+    // (4) Закомментировано для будущего использования: Подписка и пакеты (6.)
+    // loadUserSubscription();
     loadUserCars();
-    loadUserGuarantees();
+    // (4) Закомментировано для будущего использования: Система гарантий и страхование услуг (5.)
+    // loadUserGuarantees();
     loadUserNotifications();
 };
 
@@ -579,6 +581,9 @@ async function loadMasterProfile() {
             document.getElementById('masterInitial').style.display = 'flex';
         }
         
+        // Store master ID for certificates
+        window.currentMasterId = master.id;
+        
         // Load additional data
         loadMasterWorks();
         loadMasterPaymentInfo();
@@ -586,6 +591,7 @@ async function loadMasterProfile() {
         loadMasterVerificationStatus(master.id);
         loadMasterNotifications();
         loadMasterSchedule();
+        loadMasterCertificates();
         
     } catch (error) {
         console.error('Ошибка загрузки профиля мастера:', error);
@@ -761,12 +767,13 @@ async function loadMasterReviews() {
         
         recentReviews.forEach(review => {
             const reviewDiv = document.createElement('div');
-            reviewDiv.style.cssText = 'background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 10px;';
+            reviewDiv.style.cssText = 'background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 10px; position: relative;';
             
             const stars = '★'.repeat(review.rating) + '☆'.repeat(5 - review.rating);
             
             reviewDiv.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <button onclick="deleteReview(${review.id})" style="position: absolute; top: 10px; right: 10px; background: #e74c3c; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 16px; line-height: 1; display: flex; align-items: center; justify-content: center; padding: 0;" title="Удалить отзыв">×</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-right: 30px;">
                     <strong>${review.user_name}</strong>
                     <span style="color: #f59e0b;">${stars}</span>
                 </div>
@@ -929,10 +936,14 @@ async function saveWork(event) {
     }
 }
 
-// Show reviews modal
+// Show reviews modal (deprecated - redirect to reviews page instead)
 function showReviewsModal() {
-    document.getElementById('reviewsModal').style.display = 'flex';
-    loadAllReviews();
+    const masterId = getCurrentMasterId();
+    if (masterId) {
+        window.location.href = `/reviews/${masterId}`;
+    } else {
+        showMessage('Не удалось определить ID мастера', 'error');
+    }
 }
 
 // Close reviews modal
@@ -966,7 +977,8 @@ async function loadAllReviews() {
             const stars = '★'.repeat(review.rating) + '☆'.repeat(5 - review.rating);
             
             reviewDiv.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <button onclick="deleteReview(${review.id})" style="position: absolute; top: 10px; right: 10px; background: #e74c3c; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-size: 20px; line-height: 1; display: flex; align-items: center; justify-content: center; padding: 0; font-weight: bold;" title="Удалить отзыв">×</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-right: 40px;">
                     <strong>${review.user_name}</strong>
                     <span style="color: #f59e0b; font-size: 18px;">${stars}</span>
                 </div>
@@ -980,6 +992,42 @@ async function loadAllReviews() {
     } catch (error) {
         console.error('Ошибка загрузки всех отзывов:', error);
         document.getElementById('reviewsList').innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки отзывов</p>';
+    }
+}
+
+// Delete review
+async function deleteReview(reviewId) {
+    if (!confirm('Вы уверены, что хотите удалить этот отзыв?')) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/master/reviews/${reviewId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Не удалось удалить отзыв');
+        }
+        
+        showMessage('Отзыв успешно удален!', 'success');
+        loadMasterReviews();
+        loadAllReviews();
+        
+        // Reload verification status
+        const masterId = getCurrentMasterId();
+        if (masterId) {
+            loadMasterVerificationStatus(masterId);
+        }
+        
+    } catch (error) {
+        console.error('Ошибка удаления отзыва:', error);
+        showMessage(`Ошибка удаления отзыва: ${error.message}`, 'error');
     }
 }
 
@@ -1134,10 +1182,14 @@ async function uploadMasterPhoto(event) {
 
 // Review functions
 
-// Show add review modal
+// Show add review modal (deprecated - redirect to reviews page instead)
 function showAddReviewModal() {
-    document.getElementById('addReviewModal').style.display = 'flex';
-    loadMastersForReview();
+    const masterId = getCurrentMasterId();
+    if (masterId) {
+        window.location.href = `/reviews/${masterId}`;
+    } else {
+        showMessage('Не удалось определить ID мастера', 'error');
+    }
 }
 
 // Close add review modal
@@ -1418,12 +1470,30 @@ async function loadMasterVerificationStatus(masterId) {
         const status = await response.json();
         
         const statusElement = document.getElementById('masterStatusText');
+        const tooltipElement = document.getElementById('masterStatusTooltip');
+        
         if (status.is_verified) {
             statusElement.textContent = `✓ Проверенный мастер (Отзывов: ${status.review_count}, Работ: ${status.work_count})`;
             statusElement.style.color = '#10b981';
+            statusElement.style.cursor = 'default';
+            if (tooltipElement) {
+                statusElement.onmouseenter = null;
+                statusElement.onmouseleave = null;
+            }
         } else {
             statusElement.textContent = `Обычный мастер (Отзывов: ${status.review_count}, Работ: ${status.work_count})`;
             statusElement.style.color = '#64748b';
+            statusElement.style.cursor = 'help';
+            
+            // Add tooltip functionality
+            if (tooltipElement) {
+                statusElement.onmouseenter = function() {
+                    tooltipElement.style.display = 'block';
+                };
+                statusElement.onmouseleave = function() {
+                    tooltipElement.style.display = 'none';
+                };
+            }
         }
     } catch (error) {
         console.error('Ошибка загрузки статуса мастера:', error);
@@ -2381,6 +2451,264 @@ async function saveSchedule(event) {
     } catch (error) {
         console.error('Ошибка сохранения расписания:', error);
         showMessage(`Ошибка: ${error.message}`, 'error');
+    }
+}
+
+// Get current master ID
+function getCurrentMasterId() {
+    // Try to get from global variable if available
+    if (window.currentMasterId) {
+        return window.currentMasterId;
+    }
+    
+    // Otherwise load master profile and get ID
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    
+    // This will be set when master profile is loaded
+    return window.currentMasterId || null;
+}
+
+// Load master certificates
+async function loadMasterCertificates() {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        const masterId = getCurrentMasterId();
+        if (!masterId) {
+            // Try to get master profile first
+            const response = await fetch(`${API_URL}/master/profile`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) return;
+            const master = await response.json();
+            window.currentMasterId = master.id;
+        }
+        
+        const finalMasterId = window.currentMasterId || getCurrentMasterId();
+        if (!finalMasterId) {
+            // If no master ID, just show empty message
+            document.getElementById('certificatesList').innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">Пока нет сертификатов</p>';
+            return;
+        }
+        
+        // Get certificates for current master profile
+        const response = await fetch(`${API_URL}/master/certificates`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        // First check content type before checking response.ok
+        const contentType = response.headers.get('content-type') || '';
+        
+        // If response is not JSON (e.g., HTML error page), handle it
+        if (!contentType.includes('application/json')) {
+            if (response.status === 401 || response.status === 403) {
+                // Unauthorized - probably not logged in or no master profile
+                document.getElementById('certificatesList').innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">Требуется авторизация</p>';
+                return;
+            }
+            if (response.status === 404) {
+                document.getElementById('certificatesList').innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">Пока нет сертификатов</p>';
+                return;
+            }
+            const text = await response.text();
+            console.error('Non-JSON response from server (status:', response.status, '):', text.substring(0, 200));
+            
+            // If response is HTML (probably NoRoute or error page), try to show empty state
+            if (text.includes('<html') || text.includes('<!DOCTYPE')) {
+                document.getElementById('certificatesList').innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">Пока нет сертификатов</p>';
+                return;
+            }
+            
+            document.getElementById('certificatesList').innerHTML = '<p style="color: #e74c3c; text-align: center; padding: 20px;">Ошибка загрузки сертификатов</p>';
+            return;
+        }
+        
+        // Now we know it's JSON, check if response is ok
+        if (!response.ok) {
+            if (response.status === 404) {
+                document.getElementById('certificatesList').innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">Пока нет сертификатов</p>';
+                return;
+            }
+            // Parse JSON error
+            try {
+                const error = await response.json();
+                throw new Error(error.error || 'Не удалось загрузить сертификаты');
+            } catch (parseError) {
+                console.error('Error parsing error response:', parseError);
+                throw new Error('Не удалось загрузить сертификаты');
+            }
+        }
+        
+        // Parse successful JSON response
+        const certificates = await response.json();
+        const container = document.getElementById('certificatesList');
+        
+        if (certificates.length === 0) {
+            container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">Пока нет сертификатов</p>';
+            return;
+        }
+        
+        container.innerHTML = '';
+        certificates.forEach(cert => {
+            const certCard = document.createElement('div');
+            certCard.style.cssText = 'background: #f8f9fa; border-radius: 10px; padding: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);';
+            
+            certCard.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                    <h4 style="margin: 0; color: var(--primary); flex: 1;">${cert.name}</h4>
+                    <button onclick="deleteCertificate(${cert.id})" style="background: #e74c3c; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;" title="Удалить сертификат">×</button>
+                </div>
+                <img src="${cert.photo_url}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin-top: 10px;" alt="${cert.name}">
+                <p style="margin: 10px 0 0 0; color: #999; font-size: 12px;">${new Date(cert.created_at).toLocaleDateString('ru-RU')}</p>
+            `;
+            
+            container.appendChild(certCard);
+        });
+        
+    } catch (error) {
+        console.error('Ошибка загрузки сертификатов:', error);
+        document.getElementById('certificatesList').innerHTML = '<p style="color: #e74c3c;">Ошибка загрузки сертификатов</p>';
+    }
+}
+
+// Show add certificate modal
+function showAddCertificateModal() {
+    document.getElementById('addCertificateModal').style.display = 'flex';
+}
+
+// Close add certificate modal
+function closeAddCertificateModal() {
+    document.getElementById('addCertificateModal').style.display = 'none';
+    document.getElementById('addCertificateForm').reset();
+}
+
+// Save certificate
+async function saveCertificate(event) {
+    event.preventDefault();
+    
+    const name = document.getElementById('certificateName').value;
+    const photoFile = document.getElementById('certificatePhoto').files[0];
+    
+    if (!name) {
+        showMessage('Введите название сертификата', 'error');
+        return;
+    }
+    
+    if (!photoFile) {
+        showMessage('Выберите фото сертификата', 'error');
+        return;
+    }
+    
+    if (!photoFile.type.startsWith('image/')) {
+        showMessage('Пожалуйста, выберите изображение', 'error');
+        return;
+    }
+    
+    if (photoFile.size > 5 * 1024 * 1024) {
+        showMessage('Файл слишком большой (максимум 5MB)', 'error');
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('photo', photoFile);
+        
+        const response = await fetch(`${API_URL}/master/certificates`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+                // Don't set Content-Type header - browser will set it automatically with boundary for FormData
+            },
+            body: formData
+        });
+        
+        if (!response.ok) {
+            let errorMessage = 'Не удалось сохранить сертификат';
+            try {
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const error = await response.json();
+                    errorMessage = error.error || errorMessage;
+                } else {
+                    const text = await response.text();
+                    errorMessage = text || errorMessage;
+                }
+            } catch (e) {
+                console.error('Error parsing error response:', e);
+            }
+            throw new Error(errorMessage);
+        }
+        
+        // Parse successful response
+        let result;
+        try {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                result = await response.json();
+            } else {
+                // If not JSON, try to read as text for debugging
+                const text = await response.text();
+                console.error('Unexpected response format:', text);
+                // Still try to continue if we got 201/200
+                if (response.status === 201 || response.status === 200) {
+                    showMessage('Сертификат успешно добавлен!', 'success');
+                    closeAddCertificateModal();
+                    loadMasterCertificates();
+                    return;
+                }
+                throw new Error('Неверный формат ответа от сервера');
+            }
+        } catch (parseError) {
+            console.error('Error parsing response:', parseError);
+            // If we got 201/200 but parsing failed, still try to continue
+            if (response.status === 201 || response.status === 200) {
+                showMessage('Сертификат успешно добавлен!', 'success');
+                closeAddCertificateModal();
+                loadMasterCertificates();
+                return;
+            }
+            throw new Error('Ошибка при обработке ответа сервера');
+        }
+        showMessage('Сертификат успешно добавлен!', 'success');
+        closeAddCertificateModal();
+        loadMasterCertificates();
+        
+    } catch (error) {
+        console.error('Ошибка сохранения сертификата:', error);
+        showMessage(`Ошибка сохранения сертификата: ${error.message}`, 'error');
+    }
+}
+
+// Delete certificate
+async function deleteCertificate(certificateId) {
+    if (!confirm('Вы точно хотите удалить этот сертификат?')) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/master/certificates/${certificateId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Не удалось удалить сертификат');
+        }
+        
+        showMessage('Сертификат успешно удален!', 'success');
+        loadMasterCertificates();
+        
+    } catch (error) {
+        console.error('Ошибка удаления сертификата:', error);
+        showMessage(`Ошибка удаления сертификата: ${error.message}`, 'error');
     }
 }
 

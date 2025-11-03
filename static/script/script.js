@@ -33,7 +33,8 @@ window.onload = function() {
     loadMasters();
     loadCars();
     setDefaultDate();
-    initMap();
+    // (4) Закомментировано для будущего использования: Поиск мастеров поблизости (14.)
+    // initMap();
 };
 
 // Initialize map
@@ -419,6 +420,7 @@ function renderMasters(masters) {
             <div class="rating">⭐ ${master.rating || 'N/A'}</div>
             <p class="specialization">${master.specialization || 'Expert'}</p>
             <div class="master-location">📍 ${master.address || 'Location not specified'}</div>
+            <button onclick="event.stopPropagation(); window.location.href='/reviews/${master.id}'" style="margin-top: 10px; width: 100%; padding: 8px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;">Посмотреть отзывы</button>
         `;
         container.appendChild(card);
     });
@@ -527,22 +529,28 @@ async function toggleFavorite(masterId, event) {
 
 // Filter by favorites
 let showOnlyFavorites = false;
+let showOnlyVerified = false;
+
 function toggleFavoritesFilter() {
     showOnlyFavorites = !showOnlyFavorites;
     const button = document.getElementById('favoritesFilterBtn');
     if (button) {
         button.style.background = showOnlyFavorites ? 'var(--primary)' : '#6b7280';
     }
-    
-    if (showOnlyFavorites) {
-        const favoriteMasters = allMasters.filter(m => m.is_favorite);
-        renderMasters(favoriteMasters);
-    } else {
-        renderMasters(allMasters);
-    }
+    applyFilters();
 }
 
-function filterMasters() {
+function toggleVerifiedFilter() {
+    showOnlyVerified = !showOnlyVerified;
+    const button = document.getElementById('verifiedFilterBtn');
+    if (button) {
+        button.style.background = showOnlyVerified ? '#10b981' : '#6b7280';
+        button.style.color = showOnlyVerified ? 'white' : 'white';
+    }
+    applyFilters();
+}
+
+function applyFilters() {
     const searchTerm = document.getElementById('master-search').value.toLowerCase();
     let filteredMasters = allMasters.filter(master => 
         master.name.toLowerCase().includes(searchTerm) ||
@@ -555,8 +563,17 @@ function filterMasters() {
         filteredMasters = filteredMasters.filter(m => m.is_favorite);
     }
     
+    // Apply verified filter if active
+    if (showOnlyVerified) {
+        filteredMasters = filteredMasters.filter(m => m.is_verified);
+    }
+    
     console.log(`Filtered ${allMasters.length} masters to ${filteredMasters.length} results`);
     renderMasters(filteredMasters);
+}
+
+function filterMasters() {
+    applyFilters();
 }
 
 function toggleMasterDropdown() {

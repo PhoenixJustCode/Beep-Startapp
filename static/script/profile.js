@@ -6,10 +6,10 @@ window.onload = function() {
     loadUserAppointments();
     loadMasterProfile();
     // (4) Закомментировано для будущего использования: Подписка и пакеты (6.)
-    // loadUserSubscription();
+    loadUserSubscription();
     loadUserCars();
     // (4) Закомментировано для будущего использования: Система гарантий и страхование услуг (5.)
-    // loadUserGuarantees();
+    loadUserGuarantees();
     loadUserNotifications();
 };
 

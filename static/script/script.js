@@ -34,7 +34,7 @@ window.onload = function() {
     loadCars();
     setDefaultDate();
     // (4) Закомментировано для будущего использования: Поиск мастеров поблизости (14.)
-    // initMap();
+    initMap();
 };
 
 // Initialize map

@@ -1,124 +1,120 @@
--- Тестовые данные для базы данных BEEP
--- Запускать после создания всех таблиц
+-- Упрощенные тестовые данные для базы данных BEEP
+-- 2 пользователя, 2 мастера, 2 машины, базовые категории и услуги
+-- Пароль для всех пользователей: password123
 
 -- Тестовые пользователи
-INSERT INTO users (name, email, phone, password_hash, photo_url, created_at, updated_at) VALUES
-('Иван Петров', 'ivan@example.com', '+7-777-123-4567', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, NOW(), NOW()),
-('Мария Сидорова', 'maria@example.com', '+7-777-234-5678', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, NOW(), NOW()),
-('Алексей Козлов', 'alex@example.com', '+7-777-345-6789', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, NOW(), NOW()),
-('Елена Волкова', 'elena@example.com', '+7-777-456-7890', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, NOW(), NOW()),
-('Дмитрий Морозов', 'dmitry@example.com', '+7-777-567-8901', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NULL, NOW(), NOW());
+INSERT INTO users (name, email, phone, password_hash, created_at, updated_at) VALUES
+('Иван Петров', 'ivan@example.com', '+7-777-123-4567', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW(), NOW()),
+('Мария Сидорова', 'maria@example.com', '+7-777-234-5678', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', NOW(), NOW())
+ON CONFLICT (email) DO NOTHING;
 
 -- Тестовые категории услуг
-INSERT INTO categories (name, description, created_at, updated_at) VALUES
-('Автомойка', 'Полная мойка автомобиля', NOW(), NOW()),
-('Детейлинг', 'Детальная обработка кузова', NOW(), NOW()),
-('Полировка', 'Полировка кузова и фар', NOW(), NOW()),
-('Химчистка салона', 'Чистка салона автомобиля', NOW(), NOW()),
-('Защитные покрытия', 'Нанесение защитных покрытий', NOW(), NOW());
+INSERT INTO categories (name, description, created_at) VALUES
+('Автомойка', 'Полная мойка автомобиля', NOW()),
+('Детейлинг', 'Детальная обработка кузова', NOW()),
+('Полировка', 'Полировка кузова и фар', NOW()),
+('Химчистка салона', 'Чистка салона автомобиля', NOW()),
+('Защитные покрытия', 'Нанесение защитных покрытий', NOW())
+ON CONFLICT DO NOTHING;
 
 -- Тестовые услуги
-INSERT INTO services (category_id, name, description, base_price, created_at, updated_at) VALUES
-(1, 'Базовая мойка', 'Мойка кузова и колес', 2000, NOW(), NOW()),
-(1, 'Полная мойка', 'Мойка кузова, колес, салона', 3500, NOW(), NOW()),
-(1, 'Премиум мойка', 'Полная мойка + обработка', 5000, NOW(), NOW()),
-(2, 'Детейлинг кузова', 'Детальная обработка кузова', 8000, NOW(), NOW()),
-(2, 'Детейлинг салона', 'Детальная обработка салона', 6000, NOW(), NOW()),
-(3, 'Полировка кузова', 'Полировка лакокрасочного покрытия', 12000, NOW(), NOW()),
-(3, 'Полировка фар', 'Полировка фар и фонарей', 3000, NOW(), NOW()),
-(4, 'Химчистка салона', 'Полная химчистка салона', 4000, NOW(), NOW()),
-(5, 'Керамическое покрытие', 'Нанесение керамического покрытия', 25000, NOW(), NOW()),
-(5, 'Антигравийная пленка', 'Нанесение антигравийной пленки', 15000, NOW(), NOW());
+DO $$
+DECLARE
+    cat_autowash INTEGER;
+    cat_detail INTEGER;
+    cat_polish INTEGER;
+    cat_cleaning INTEGER;
+    cat_protection INTEGER;
+BEGIN
+    -- Получить ID категорий
+    SELECT id INTO cat_autowash FROM categories WHERE name = 'Автомойка' LIMIT 1;
+    SELECT id INTO cat_detail FROM categories WHERE name = 'Детейлинг' LIMIT 1;
+    SELECT id INTO cat_polish FROM categories WHERE name = 'Полировка' LIMIT 1;
+    SELECT id INTO cat_cleaning FROM categories WHERE name = 'Химчистка салона' LIMIT 1;
+    SELECT id INTO cat_protection FROM categories WHERE name = 'Защитные покрытия' LIMIT 1;
 
--- Тестовые автомобили
-INSERT INTO cars (brand, model, year, color, license_plate, created_at, updated_at) VALUES
-('Toyota', 'Camry', 2020, 'Белый', '123ABC01', NOW(), NOW()),
-('BMW', 'X5', 2021, 'Черный', '456DEF02', NOW(), NOW()),
-('Mercedes', 'E-Class', 2019, 'Серебристый', '789GHI03', NOW(), NOW()),
-('Audi', 'A4', 2022, 'Синий', '012JKL04', NOW(), NOW()),
-('Lexus', 'RX', 2020, 'Красный', '345MNO05', NOW(), NOW()),
-('Volkswagen', 'Tiguan', 2021, 'Серый', '678PQR06', NOW(), NOW()),
-('Hyundai', 'Tucson', 2019, 'Белый', '901STU07', NOW(), NOW()),
-('Kia', 'Sportage', 2022, 'Черный', '234VWX08', NOW(), NOW());
+    -- Услуги
+    INSERT INTO services (category_id, name, description, base_price, min_price, max_price, duration_minutes, created_at) VALUES
+    (cat_autowash, 'Базовая мойка', 'Мойка кузова и колес', 2000, 1500, 3000, 30, NOW()),
+    (cat_autowash, 'Полная мойка', 'Мойка кузова, колес, салона', 3500, 2500, 5000, 60, NOW()),
+    (cat_detail, 'Детейлинг кузова', 'Детальная обработка кузова', 8000, 6000, 12000, 180, NOW()),
+    (cat_polish, 'Полировка кузова', 'Полировка лакокрасочного покрытия', 12000, 10000, 18000, 240, NOW()),
+    (cat_cleaning, 'Химчистка салона', 'Полная химчистка салона', 4000, 3000, 6000, 120, NOW()),
+    (cat_protection, 'Керамическое покрытие', 'Нанесение керамического покрытия', 25000, 20000, 35000, 480, NOW())
+    ON CONFLICT DO NOTHING;
+END $$;
 
--- Тестовые мастера
-INSERT INTO masters (user_id, name, email, phone, specialization, address, photo_url, rating, created_at, updated_at) VALUES
-(1, 'Иван Петров', 'ivan@example.com', '+7-777-123-4567', 'Автомойка и детейлинг', 'ул. Примерная, 1', NULL, 4.8, NOW(), NOW()),
-(2, 'Мария Сидорова', 'maria@example.com', '+7-777-234-5678', 'Полировка и защитные покрытия', 'ул. Тестовая, 2', NULL, 4.9, NOW(), NOW()),
-(3, 'Алексей Козлов', 'alex@example.com', '+7-777-345-6789', 'Химчистка салона', 'ул. Образцовая, 3', NULL, 4.7, NOW(), NOW());
+-- Тестовые автомобили (2 машины)
+INSERT INTO cars (brand, model, year, type, created_at) VALUES
+('Toyota', 'Camry', 2020, 'Sedan', NOW()),
+('BMW', 'X5', 2021, 'SUV', NOW())
+ON CONFLICT DO NOTHING;
 
--- Тестовые записи на услуги
-INSERT INTO appointments (user_id, master_id, service_id, car_id, appointment_date, appointment_time, status, comment, total_price, created_at, updated_at) VALUES
-(4, 1, 1, 1, '2025-10-29', '10:00', 'confirmed', 'Первая запись', 2000, NOW(), NOW()),
-(5, 2, 6, 2, '2025-10-30', '14:00', 'confirmed', 'Полировка кузова', 12000, NOW(), NOW()),
-(4, 3, 8, 3, '2025-10-31', '11:00', 'pending', 'Химчистка салона', 4000, NOW(), NOW()),
-(5, 1, 3, 4, '2025-11-01', '16:00', 'confirmed', 'Премиум мойка', 5000, NOW(), NOW());
+-- Тестовые мастера (2 мастера)
+-- Получаем user_id для мастеров
+DO $$
+DECLARE
+    user_ivan_id INTEGER;
+    user_maria_id INTEGER;
+    master_ivan_id INTEGER;
+    master_maria_id INTEGER;
+BEGIN
+    -- Получить ID пользователей
+    SELECT id INTO user_ivan_id FROM users WHERE email = 'ivan@example.com';
+    SELECT id INTO user_maria_id FROM users WHERE email = 'maria@example.com';
 
--- Тестовые отзывы
-INSERT INTO reviews (user_id, master_id, rating, comment, created_at, updated_at) VALUES
-(4, 1, 5, 'Отличная работа! Машина как новая.', NOW(), NOW()),
-(5, 2, 5, 'Профессиональный подход, рекомендую!', NOW(), NOW()),
-(4, 3, 4, 'Хорошее качество, быстрая работа.', NOW(), NOW()),
-(5, 1, 5, 'Очень доволен результатом.', NOW(), NOW());
+    -- Создать профили мастеров
+    INSERT INTO masters (user_id, name, email, phone, specialization, rating, address, created_at, updated_at) VALUES
+    (user_ivan_id, 'Иван Петров', 'ivan@example.com', '+7-777-123-4567', 'Автомойка и полировка', 4.8, 'ул. Абая, 150, Алматы', NOW(), NOW()),
+    (user_maria_id, 'Мария Сидорова', 'maria@example.com', '+7-777-234-5678', 'Детейлинг и защитные покрытия', 4.9, 'ул. Сатпаева, 90, Алматы', NOW(), NOW())
+    ON CONFLICT (user_id) DO NOTHING
+    RETURNING id INTO master_ivan_id;
 
--- Тестовые работы мастеров
-INSERT INTO master_works (master_id, title, work_date, customer_name, amount, photo_urls, created_at, updated_at) VALUES
-(1, 'Полная мойка BMW X5', '2025-10-25', 'Анна Иванова', 3500, NULL, NOW(), NOW()),
-(1, 'Детейлинг Mercedes E-Class', '2025-10-24', 'Петр Сидоров', 8000, NULL, NOW(), NOW()),
-(2, 'Полировка Toyota Camry', '2025-10-23', 'Елена Козлова', 12000, NULL, NOW(), NOW()),
-(2, 'Керамическое покрытие Audi A4', '2025-10-22', 'Михаил Волков', 25000, NULL, NOW(), NOW()),
-(3, 'Химчистка Lexus RX', '2025-10-21', 'Ольга Морозова', 4000, NULL, NOW(), NOW()),
-(3, 'Детейлинг салона Volkswagen Tiguan', '2025-10-20', 'Сергей Новиков', 6000, NULL, NOW(), NOW());
+    -- Получить ID мастеров
+    SELECT id INTO master_ivan_id FROM masters WHERE user_id = user_ivan_id;
+    SELECT id INTO master_maria_id FROM masters WHERE user_id = user_maria_id;
 
--- Тестовые зоны ценообразования
-INSERT INTO price_zones (name, description, created_at, updated_at) VALUES
-('Центр города', 'Центральная часть города', NOW(), NOW()),
-('Спальные районы', 'Жилые районы', NOW(), NOW()),
-('Промышленная зона', 'Промышленные районы', NOW(), NOW());
+    -- Расписание для первого мастера (Иван)
+    INSERT INTO master_schedule (master_id, day_of_week, start_time, end_time, is_active, created_at) VALUES
+    (master_ivan_id, 0, '10:00', '16:00', true, NOW()),  -- Воскресенье
+    (master_ivan_id, 1, '09:00', '18:00', true, NOW()),  -- Понедельник
+    (master_ivan_id, 2, '09:00', '18:00', true, NOW()),  -- Вторник
+    (master_ivan_id, 3, '09:00', '18:00', true, NOW()),  -- Среда
+    (master_ivan_id, 4, '09:00', '18:00', true, NOW()),  -- Четверг
+    (master_ivan_id, 5, '09:00', '18:00', true, NOW()),  -- Пятница
+    (master_ivan_id, 6, '10:00', '16:00', true, NOW())   -- Суббота
+    ON CONFLICT DO NOTHING;
 
--- Тестовые правила ценообразования
-INSERT INTO pricing_rules (service_id, price_zone_id, multiplier, created_at, updated_at) VALUES
-(1, 1, 1.2, NOW(), NOW()),  -- Базовая мойка в центре +20%
-(1, 2, 1.0, NOW(), NOW()),  -- Базовая мойка в спальных районах
-(1, 3, 0.9, NOW(), NOW()),  -- Базовая мойка в промзоне -10%
-(2, 1, 1.1, NOW(), NOW()),  -- Полная мойка в центре +10%
-(2, 2, 1.0, NOW(), NOW()),  -- Полная мойка в спальных районах
-(2, 3, 0.95, NOW(), NOW()), -- Полная мойка в промзоне -5%
-(6, 1, 1.3, NOW(), NOW()),  -- Полировка в центре +30%
-(6, 2, 1.1, NOW(), NOW()),  -- Полировка в спальных районах +10%
-(6, 3, 1.0, NOW(), NOW());  -- Полировка в промзоне
+    -- Расписание для второго мастера (Мария)
+    INSERT INTO master_schedule (master_id, day_of_week, start_time, end_time, is_active, created_at) VALUES
+    (master_maria_id, 0, '11:00', '17:00', true, NOW()),  -- Воскресенье
+    (master_maria_id, 1, '10:00', '19:00', true, NOW()),  -- Понедельник
+    (master_maria_id, 2, '10:00', '19:00', true, NOW()),  -- Вторник
+    (master_maria_id, 3, '10:00', '19:00', true, NOW()),  -- Среда
+    (master_maria_id, 4, '10:00', '19:00', true, NOW()),  -- Четверг
+    (master_maria_id, 5, '10:00', '19:00', true, NOW()),  -- Пятница
+    (master_maria_id, 6, '11:00', '18:00', true, NOW())   -- Суббота
+    ON CONFLICT DO NOTHING;
 
--- Тестовое расписание мастеров
-INSERT INTO master_schedule (master_id, day_of_week, start_time, end_time, is_available, created_at, updated_at) VALUES
-(1, 1, '09:00', '18:00', true, NOW(), NOW()),  -- Понедельник
-(1, 2, '09:00', '18:00', true, NOW(), NOW()),  -- Вторник
-(1, 3, '09:00', '18:00', true, NOW(), NOW()),  -- Среда
-(1, 4, '09:00', '18:00', true, NOW(), NOW()),  -- Четверг
-(1, 5, '09:00', '18:00', true, NOW(), NOW()),  -- Пятница
-(1, 6, '10:00', '16:00', true, NOW(), NOW()),  -- Суббота
-(1, 0, '10:00', '14:00', true, NOW(), NOW()),  -- Воскресенье
+    -- Платежная информация для мастеров
+    INSERT INTO master_payment_info (master_id, kaspi_card, freedom_card, halyk_card, created_at, updated_at) VALUES
+    (master_ivan_id, 'KZ123456789012345678', NULL, NULL, NOW(), NOW()),
+    (master_maria_id, NULL, 'KZ987654321098765432', NULL, NOW(), NOW())
+    ON CONFLICT (master_id) DO NOTHING;
 
-(2, 1, '10:00', '19:00', true, NOW(), NOW()),  -- Понедельник
-(2, 2, '10:00', '19:00', true, NOW(), NOW()),  -- Вторник
-(2, 3, '10:00', '19:00', true, NOW(), NOW()),  -- Среда
-(2, 4, '10:00', '19:00', true, NOW(), NOW()),  -- Четверг
-(2, 5, '10:00', '19:00', true, NOW(), NOW()),  -- Пятница
-(2, 6, '11:00', '17:00', true, NOW(), NOW()),  -- Суббота
-(2, 0, '11:00', '15:00', true, NOW(), NOW()),  -- Воскресенье
+    -- Примеры работ мастеров
+    INSERT INTO master_works (master_id, title, work_date, customer_name, amount, created_at) VALUES
+    (master_ivan_id, 'Полная мойка BMW X5', CURRENT_DATE - INTERVAL '5 days', 'Анна Иванова', 3500, NOW()),
+    (master_ivan_id, 'Полировка Toyota Camry', CURRENT_DATE - INTERVAL '3 days', 'Петр Сидоров', 12000, NOW()),
+    (master_maria_id, 'Детейлинг кузова', CURRENT_DATE - INTERVAL '7 days', 'Елена Козлова', 8000, NOW()),
+    (master_maria_id, 'Керамическое покрытие', CURRENT_DATE - INTERVAL '2 days', 'Михаил Волков', 25000, NOW())
+    ON CONFLICT DO NOTHING;
 
-(3, 1, '08:00', '17:00', true, NOW(), NOW()),  -- Понедельник
-(3, 2, '08:00', '17:00', true, NOW(), NOW()),  -- Вторник
-(3, 3, '08:00', '17:00', true, NOW(), NOW()),  -- Среда
-(3, 4, '08:00', '17:00', true, NOW(), NOW()),  -- Четверг
-(3, 5, '08:00', '17:00', true, NOW(), NOW()),  -- Пятница
-(3, 6, '09:00', '15:00', true, NOW(), NOW()),  -- Суббота
-(3, 0, '09:00', '13:00', true, NOW(), NOW());  -- Воскресенье
-
--- Информация о платежах мастеров
-INSERT INTO master_payment_info (master_id, bank_name, account_number, created_at, updated_at) VALUES
-(1, 'Kaspi Bank', 'KZ123456789012345678', NOW(), NOW()),
-(2, 'Halyk Bank', 'KZ987654321098765432', NOW(), NOW()),
-(3, 'Jusan Bank', 'KZ555555555555555555', NOW(), NOW());
-
--- Пароли для тестовых пользователей (все: password123)
--- Хеш: $2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi
+    -- Примеры отзывов
+    INSERT INTO reviews (master_id, user_id, rating, comment, created_at) VALUES
+    (master_ivan_id, user_ivan_id, 5, 'Отличная работа! Машина как новая.', NOW()),
+    (master_ivan_id, user_maria_id, 5, 'Профессиональный подход, рекомендую!', NOW()),
+    (master_maria_id, user_ivan_id, 5, 'Очень доволен результатом.', NOW()),
+    (master_maria_id, user_maria_id, 5, 'Прекрасный мастер, качественная работа!', NOW())
+    ON CONFLICT DO NOTHING;
+END $$;

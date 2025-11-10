@@ -1,38 +1,4 @@
--- Структура базы данных BEEP
--- Создает все необходимые таблицы
-
--- Таблица пользователей
-CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    phone VARCHAR(20),
-    photo_url VARCHAR(255),
-    password_hash VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Таблица категорий услуг
-CREATE TABLE IF NOT EXISTS categories (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Таблица услуг
-CREATE TABLE IF NOT EXISTS services (
-    id SERIAL PRIMARY KEY,
-    category_id INTEGER REFERENCES categories(id),
-    name VARCHAR(200) NOT NULL,
-    description TEXT,
-    base_price DECIMAL(10,2),
-    min_price DECIMAL(10,2),
-    max_price DECIMAL(10,2),
-    duration_minutes INTEGER,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+з
 
 -- Таблица автомобилей
 CREATE TABLE IF NOT EXISTS cars (
@@ -145,4 +111,13 @@ CREATE TABLE IF NOT EXISTS master_certificates (
     name VARCHAR(255) NOT NULL,
     photo_url VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Таблица избранных мастеров
+CREATE TABLE IF NOT EXISTS favorite_masters (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    master_id INTEGER REFERENCES masters(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, master_id)
 );

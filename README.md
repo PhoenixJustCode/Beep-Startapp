@@ -76,10 +76,11 @@ go run cmd/main.go
 psql -U beep_user -d beep_db -f sample_data.sql
 ```
 
-**Тестовые пользователи:**
-- Email: `ivan@example.com`, Пароль: `password123`
-- Email: `maria@example.com`, Пароль: `password123`
-- Email: `alex@example.com`, Пароль: `password123`
+**Тестовые пользователи и мастера (2 пользователя = 2 мастера):**
+- Email: `ivan@example.com`, Пароль: `password123` (Мастер: Иван Петров)
+- Email: `maria@example.com`, Пароль: `password123` (Мастер: Мария Сидорова)
+
+**Тестовые автомобили:** 2 машины (Toyota Camry 2020, BMW X5 2021)
 
 ## Деплой на VDS
 
